@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Regulament Vipuri Roleplay - Portal Oficial</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Glowing Background Effects -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+
+  <!-- Header Navigation -->
+  <header id="mainHeader">
+    <div class="header-container">
+      <a href="/" class="logo-area">
+        <img src="assets/logo.png" alt="Vipuri Logo" class="logo-img" onerror="this.src='https://i.imgur.com/Kz7l3zL.png';">
+        <div class="logo-text-container">
+          <span class="logo-title">Vipuri</span>
+          <span class="logo-subtitle">Roleplay</span>
+        </div>
+      </a>
+
+      <!-- Categories Selector -->
+      <nav class="nav-categories" id="categoriesNav">
+        <!-- populated dynamically -->
+        <button class="category-tab active" data-category="general">Regulament General</button>
+        <button class="category-tab" data-category="sanctiuni">Sancțiuni</button>
+        <button class="category-tab" data-category="pd">Poliție</button>
+        <button class="category-tab" data-category="smurd">SMURD</button>
+        <button class="category-tab" data-category="mafii">Mafii/Gang</button>
+        <button class="category-tab" data-category="cod-penal">Cod Penal</button>
+        <button class="category-tab" data-category="lideri">Lideri</button>
+      </nav>
+
+      <div class="header-actions" id="headerActions">
+        <!-- Auth state widgets will go here dynamically -->
+        <button class="btn-primary" id="openAuthBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Conectare Staff
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero & Search Section -->
+  <section class="hero">
+    <h1 class="hero-title-glowing">Portalul Oficial de <span>Regulamente</span></h1>
+    <p class="hero-subtitle">Navighează prin codul penal, ghidurile de fracțiuni și regulile generale ale serverului nostru.</p>
+    
+    <div class="search-wrapper">
+      <div class="search-input-container">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="search-input" id="rulesSearch" placeholder="Caută cuvinte cheie (ex: metagaming, tazer, amenda, turf)..." autocomplete="off">
+        <span class="search-shortcut">Ctrl + K</span>
+      </div>
+      <div class="search-results-dropdown" id="searchResults">
+        <!-- populated dynamically -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content Grid -->
+  <main class="main-content">
+    
+    <!-- Collapsible Sidebar Navigation -->
+    <aside class="sidebar-nav">
+      <h3 class="sidebar-title">Capitole & Articole</h3>
+      <ul class="chapters-list" id="chaptersList">
+        <!-- populated dynamically -->
+      </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <section class="content-area">
+      <div class="rules-container" id="rulesContainer">
+        <!-- populated dynamically -->
+        <div class="rules-empty-state">
+          <h3>Se încarcă regulamentele...</h3>
+          <p>Te rugăm să aștepți câteva secunde.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Auth Modal -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-card">
+      <button class="modal-close" id="closeAuthBtn">&times;</button>
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-tab="login">Autentificare</button>
+        <button class="modal-tab-btn" data-tab="register">Înregistrare Staff</button>
+      </div>
+
+      <!-- Login Form -->
+      <form class="auth-form active" id="loginForm">
+        <div class="form-group">
+          <label class="form-label" for="loginUsername">Nume Utilizator</label>
+          <input type="text" class="form-input" id="loginUsername" placeholder="Introdu username..." required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Parolă</label>
+          <input type="password" class="form-input" id="loginPassword" placeholder="Parola ta" required>
+        </div>
+        <button type="submit" class="btn-primary" style="justify-content: center; margin-top: 0.5rem;">Conectare</button>
+      </form>
+
+      <!-- Register Form -->
+      <form class="auth-form" id="registerForm">
+        <div class="form-group">
+          <label class="form-label" for="regUsername">Nume Utilizator (Username unic)</label>
+          <input type="text" class="form-input" id="regUsername" placeholder="Alege un username..." required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regFullName">Nume și Prenume (Nume real/RP)</label>
+          <input type="text" class="form-input" id="regFullName" placeholder="Numele tău complet..." required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regDiscord">Discord User ID sau Nume</label>
+          <input type="text" class="form-input" id="regDiscord" placeholder="Nume utilizator Discord..." required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Parolă</label>
+          <input type="password" class="form-input" id="regPassword" placeholder="Creează o parolă puternică" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regRole">Rol Solicitat</label>
+          <select class="form-select" id="regRole" required>
+            <option value="admin" selected>Admin (Editează Regulamente)</option>
+            <option value="manager">Manager Staff (Aprobă cereri & Roluri)</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-primary" style="justify-content: center; margin-top: 0.5rem;">Trmite Cererea</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
