@@ -1671,3 +1671,28 @@ header.scrolled {
     grid-template-columns: 1fr;
   }
 }
+
+/* File Upload Button Styles */
+.btn-secondary.file-upload-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  color: var(--text-light);
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-secondary.file-upload-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--primary);
+  box-shadow: 0 4px 15px rgba(226, 27, 60, 0.15);
+}

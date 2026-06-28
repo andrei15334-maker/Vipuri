@@ -559,14 +559,25 @@ const defaultQuestions = {
     { id: "q_smurd_6", type: "radio", label: "6. Sunteți conștienți de consecințele corupției?", options: ["DA", "NU"], required: true }
   ],
   police: [
-    { id: "q_pd_1", type: "text", label: "Nume Prenume OOC (Real)", required: true, placeholder: "Numele tău complet" },
-    { id: "q_pd_2", type: "number", label: "Vârstă OOC (cifre)", required: true, placeholder: "Vârsta ta reală" },
-    { id: "q_pd_3", type: "text", label: "Discord ID (ex: nume#0000 sau nume)", required: true, placeholder: "ID-ul tău de Discord" },
-    { id: "q_pd_4", type: "number", label: "ID Jucător din joc (cifre)", required: true, placeholder: "Ex: 1042" },
-    { id: "q_pd_5", type: "number", label: "Ore jucate pe server (minim 15)", required: true, placeholder: "Ore jucate" },
-    { id: "q_pd_6", type: "textarea", label: "De ce doriți să vă alăturați Poliției?", required: true, placeholder: "Scrie un răspuns detaliat..." },
-    { id: "q_pd_7", type: "radio", label: "Aveți un cazier activ?", options: ["DA", "NU"], required: true },
-    { id: "q_pd_8", type: "radio", label: "Sunteți de acord să respectați ordinele superiorilor?", options: ["DA", "NU"], required: true }
+    { id: "q_pd_1", type: "text", label: "[OOC] Nume Prenume OOC (Real)", required: true, placeholder: "Numele tău complet" },
+    { id: "q_pd_2", type: "number", label: "[OOC] Vârstă OOC (cifre)", required: true, placeholder: "Vârsta ta reală" },
+    { id: "q_pd_3", type: "textarea", label: "[OOC] Calități personale (minim 3)", required: true, placeholder: "Ex: Răbdător, calm, comunicativ..." },
+    { id: "q_pd_4", type: "textarea", label: "[OOC] Defecte personale (minim 3)", required: true, placeholder: "Fii sincer..." },
+    { id: "q_pd_5", type: "textarea", label: "[OOC] Descriere personală (minim 30 de cuvinte)", required: true, placeholder: "Detalii despre tine OOC..." },
+    { id: "q_pd_6", type: "number", label: "[OOC] Ore jucate pe server (minim 15)", required: true, placeholder: "Ore jucate pe server" },
+    { id: "q_pd_7", type: "number", label: "[OOC] Câte ore poți dedica pe zi departamentului?", required: true, placeholder: "Ore dedicate zilnic" },
+    { id: "q_pd_8", type: "radio", label: "[OOC] Faci parte dintr-o facțiune / mafie / organizație în acest moment?", options: ["DA", "NU"], required: true },
+    { id: "q_pd_9", type: "radio", label: "[OOC] Ești de acord să părăsești facțiunea actuală dacă ești acceptat (dacă este cazul)?", options: ["DA", "NU"], required: true },
+    { id: "q_pd_10", type: "text", label: "[OOC] Discord ID (ex: nume#0000 sau nume)", required: true, placeholder: "Discord Username" },
+    { id: "q_pd_11", type: "text", label: "[IC] Nume și Prenume caracter joc", required: true, placeholder: "Numele caracterului din joc" },
+    { id: "q_pd_12", type: "file", label: "[IC] Poza cu buletinul din joc (/buletin)", required: true },
+    { id: "q_pd_13", type: "number", label: "[IC] CNP Caracter (ID joc)", required: true, placeholder: "ID-ul tău din joc" },
+    { id: "q_pd_14", type: "number", label: "[IC] Vârstă Caracter joc (cifre)", required: true, placeholder: "Vârsta personajului in-game" },
+    { id: "q_pd_15", type: "radio", label: "[IC] Ați citit regulamentul departamentului?", options: ["DA", "NU"], required: true },
+    { id: "q_pd_16", type: "textarea", label: "[IC] Istoricul / Povestea caracterului tău (minim 50 cuvinte)", required: true, placeholder: "Trecutul, evenimente cheie..." },
+    { id: "q_pd_17", type: "textarea", label: "[IC] De ce vrei să intri în departamentul de Poliție din VIPURI?", required: true, placeholder: "Motivele tale..." },
+    { id: "q_pd_18", type: "textarea", label: "[IC] Care sunt scopurile tale ca viitor polițist?", required: true, placeholder: "Ce dorești să realizezi..." },
+    { id: "q_pd_19", type: "radio", label: "[Confirmare] Confirm că am luat la cunoștință că dacă voi fi acceptat voi susține testul din Regulament Server, Regulament Poliție și codurile pentru licența Radio!", options: ["DA", "NU"], required: true }
   ],
   staff: [
     { id: "q_staff_1", type: "text", label: "Adresă de e-mail", required: true, placeholder: "Ex: contact@email.com" },
