@@ -554,7 +554,10 @@ class Database {
     this.data = {
       users: [],
       rules: defaultRules,
-      logs: []
+      logs: [],
+      applications: [],
+      appStatus: { police: true, smurd: true, staff: true, gang: true },
+      applicationLogs: []
     };
     this.init();
   }
@@ -564,7 +567,7 @@ class Database {
       if (fs.existsSync(DB_PATH)) {
         const fileContent = fs.readFileSync(DB_PATH, 'utf8');
         this.data = JSON.parse(fileContent);
-        // Ensure rules and logs exist in loaded data
+        // Asigură-te că proprietățile există în fișierul încărcat
         if (!this.data.rules || Object.keys(this.data.rules).length === 0 || !this.data.rules.general) {
           this.data.rules = defaultRules;
           this.save();
@@ -573,8 +576,20 @@ class Database {
           this.data.logs = [];
           this.save();
         }
+        if (!this.data.applications) {
+          this.data.applications = [];
+          this.save();
+        }
+        if (!this.data.appStatus) {
+          this.data.appStatus = { police: true, smurd: true, staff: true, gang: true };
+          this.save();
+        }
+        if (!this.data.applicationLogs) {
+          this.data.applicationLogs = [];
+          this.save();
+        }
       } else {
-        // Seed initial manager user
+        // Seed utilizator manager inițial
         const { salt, hash } = hashPassword('vipuri2026');
         this.data.users.push({
           username: 'manager_staff',
@@ -588,6 +603,9 @@ class Database {
         });
         this.data.rules = defaultRules;
         this.data.logs = [];
+        this.data.applications = [];
+        this.data.appStatus = { police: true, smurd: true, staff: true, gang: true };
+        this.data.applicationLogs = [];
         this.save();
         console.log("Database seeded successfully with default manager_staff user.");
       }
@@ -604,13 +622,11 @@ class Database {
     }
   }
 
-  // Password verification method in the Database class
   verifyPassword(password, salt, hash) {
     const testHash = crypto.createHash('sha256').update(password + salt).digest('hex');
     return testHash === hash;
   }
 
-  // System Logs Action
   logAction(username, fullName, action) {
     if (!this.data.logs) {
       this.data.logs = [];
@@ -621,7 +637,6 @@ class Database {
       fullName,
       action
     });
-    // Keep last 150 logs
     if (this.data.logs.length > 150) {
       this.data.logs = this.data.logs.slice(0, 150);
     }
@@ -642,21 +657,23 @@ class Database {
       return { success: false, message: "Utilizatorul există deja!" };
     }
 
+    const validRoles = ['admin', 'manager', 'tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'];
+    const assignedRole = validRoles.includes(requestedRole) ? requestedRole : 'admin';
+
     const { salt, hash } = hashPassword(password);
     const newUser = {
       username: username.toLowerCase().trim(),
       fullName: fullName.trim(),
       discordId: discordId.trim(),
-      role: requestedRole === 'manager' ? 'manager' : 'admin',
-      status: 'pending', // Requires approval
+      role: assignedRole,
+      status: 'pending',
       salt: salt,
       hash: hash,
       createdAt: new Date().toISOString()
     };
 
     this.data.users.push(newUser);
-    // Log new user registration (no session user yet, so we write system seeder)
-    this.logAction(newUser.username, newUser.fullName, `S-a înregistrat pe site și așteaptă aprobarea de Manager.`);
+    this.logAction(newUser.username, newUser.fullName, `S-a înregistrat pe site cu rolul solicitat "${assignedRole.toUpperCase()}" și așteaptă aprobarea.`);
     this.save();
     return { success: true, user: newUser };
   }
@@ -679,7 +696,7 @@ class Database {
     this.data.users.splice(index, 1);
     this.logAction(adminUser, adminName, `A respins și șters cererea de înregistrare a utilizatorului "${username}".`);
     this.save();
-    return { success: true, message: `Înregistrarea utilizatorului ${user.username} a fost respinsă și ștearsă.` };
+    return { success: true, message: `Înregistrarea utilizatorului ${user.username} a fost respinsă.` };
   }
 
   getPendingUsers() {
@@ -706,8 +723,9 @@ class Database {
     const user = this.getUser(username);
     if (!user) return { success: false, message: "Utilizatorul nu a fost găsit." };
     
-    if (newRole !== 'admin' && newRole !== 'manager') {
-      return { success: false, message: "Rol invalid. Trebuie să fie admin sau manager." };
+    const validRoles = ['admin', 'manager', 'tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'];
+    if (!validRoles.includes(newRole)) {
+      return { success: false, message: "Rol invalid. Alege un rol valid din sistem." };
     }
     
     const oldRole = user.role;
@@ -758,6 +776,126 @@ class Database {
     this.logAction(adminUser, adminName, `A modificat textul subcapitolului "${subchapter.title}" din categoria "${category.title}".`);
     this.save();
     return { success: true, message: "Subcapitolul a fost actualizat cu succes." };
+  }
+
+  // Application Gestiune
+  getApplicationsStatus() {
+    if (!this.data.appStatus) {
+      this.data.appStatus = { police: true, smurd: true, staff: true, gang: true };
+    }
+    return this.data.appStatus;
+  }
+
+  submitApplication(type, formData) {
+    if (!this.data.applications) {
+      this.data.applications = [];
+    }
+    
+    const status = this.getApplicationsStatus();
+    if (!status[type]) {
+      return { success: false, message: "Aplicațiile pentru această secțiune sunt momentan închise." };
+    }
+
+    const newApp = {
+      id: 'app_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      type,
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+      formData,
+      processedBy: null,
+      processedByName: null,
+      processedAt: null,
+      rejectReason: null
+    };
+
+    this.data.applications.push(newApp);
+    
+    let applicantName = "Jucător Anonim";
+    if (type === 'police' && formData.numeOoc) applicantName = formData.numeOoc;
+    else if (type === 'smurd' && formData.idJoc) applicantName = `ID: ${formData.idJoc}`;
+    else if (type === 'staff' && formData.numeVarsta) applicantName = formData.numeVarsta;
+    else if (type === 'gang' && formData.numeOoc) applicantName = formData.numeOoc;
+
+    this.logApplicationAction(type, applicantName, 'pending', 'Sistem', `Aplicație trimisă.`);
+    this.save();
+    return { success: true, application: newApp };
+  }
+
+  toggleApplicationStatus(type, isOpen, adminUser, adminName) {
+    if (!this.data.appStatus) {
+      this.data.appStatus = { police: true, smurd: true, staff: true, gang: true };
+    }
+    
+    this.data.appStatus[type] = isOpen;
+    
+    const statusText = isOpen ? "DESCHISE" : "ÎNCHISE";
+    this.logAction(adminUser, adminName, `A schimbat statusul aplicațiilor pentru ${type.toUpperCase()} în ${statusText}.`);
+    this.save();
+    return { success: true, status: this.data.appStatus };
+  }
+
+  processApplication(appId, status, reason, adminUser, adminName) {
+    if (!this.data.applications) {
+      this.data.applications = [];
+    }
+
+    const app = this.data.applications.find(a => a.id === appId);
+    if (!app) {
+      return { success: false, message: "Aplicația nu a fost găsită." };
+    }
+
+    if (app.status !== 'pending') {
+      return { success: false, message: "Aplicația a fost deja procesată." };
+    }
+
+    app.status = status; // 'accepted' or 'rejected'
+    app.processedBy = adminUser;
+    app.processedByName = adminName;
+    app.processedAt = new Date().toISOString();
+    if (status === 'rejected') {
+      app.rejectReason = reason || "Nespecificat";
+    }
+
+    let applicantName = "Jucător";
+    const type = app.type;
+    const formData = app.formData;
+    if (type === 'police' && formData.numeOoc) applicantName = formData.numeOoc;
+    else if (type === 'smurd' && formData.idJoc) applicantName = `ID: ${formData.idJoc}`;
+    else if (type === 'staff' && formData.numeVarsta) applicantName = formData.numeVarsta;
+    else if (type === 'gang' && formData.numeOoc) applicantName = formData.numeOoc;
+
+    const actionText = status === 'accepted' ? "Acceptat" : `Respins (Motiv: ${reason || 'Nespecificat'})`;
+    this.logApplicationAction(type, applicantName, status, adminName, actionText);
+    this.logAction(adminUser, adminName, `A ${status === 'accepted' ? 'acceptat' : 'respins'} aplicația (${type.toUpperCase()}) lui "${applicantName}".`);
+    
+    this.save();
+    return { success: true, application: app };
+  }
+
+  logApplicationAction(appType, applicantName, status, processedBy, reason) {
+    if (!this.data.applicationLogs) {
+      this.data.applicationLogs = [];
+    }
+    this.data.applicationLogs.unshift({
+      timestamp: new Date().toISOString(),
+      appType,
+      applicantName,
+      status,
+      processedBy,
+      reason
+    });
+    
+    if (this.data.applicationLogs.length > 200) {
+      this.data.applicationLogs = this.data.applicationLogs.slice(0, 200);
+    }
+  }
+
+  getApplicationLogs() {
+    return this.data.applicationLogs || [];
+  }
+
+  getApplications() {
+    return this.data.applications || [];
   }
 }
 

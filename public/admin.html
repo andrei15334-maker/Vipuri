@@ -45,6 +45,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         Editare Regulamente
       </button>
+      <button class="admin-tab-btn" data-target="applicationsPanel" id="applicationsTab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Gestiune Aplicații
+      </button>
       <button class="admin-tab-btn" data-target="managerPanel" id="managerTab" style="display: none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Management Staff
@@ -193,6 +197,100 @@
       </div>
     </div>
 
+    <!-- TAB 4: Applications Panel -->
+    <div class="admin-tab-panel" id="applicationsPanel">
+      
+      <!-- Card 1: Control panel toggles -->
+      <div class="manager-card" style="margin-bottom: 2rem;">
+        <h2 class="manager-card-title">Panou Control Status Formulare (START / STOP)</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+          
+          <div class="editor-selector-panel" style="padding: 1.25rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.75rem;">
+            <strong style="color: var(--text-light); font-size: 0.95rem;">Aplicații SMURD</strong>
+            <span id="statusBadge-smurd" class="badge badge-fine">DESCHISE</span>
+            <button class="action-badge-btn delete" id="toggleBtn-smurd" style="width: 100%; text-align: center; justify-content: center;">Oprește (STOP)</button>
+          </div>
+          
+          <div class="editor-selector-panel" style="padding: 1.25rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.75rem;">
+            <strong style="color: var(--text-light); font-size: 0.95rem;">Aplicații Poliție</strong>
+            <span id="statusBadge-police" class="badge badge-fine">DESCHISE</span>
+            <button class="action-badge-btn delete" id="toggleBtn-police" style="width: 100%; text-align: center; justify-content: center;">Oprește (STOP)</button>
+          </div>
+          
+          <div class="editor-selector-panel" style="padding: 1.25rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.75rem;">
+            <strong style="color: var(--text-light); font-size: 0.95rem;">Aplicații Staff</strong>
+            <span id="statusBadge-staff" class="badge badge-fine">DESCHISE</span>
+            <button class="action-badge-btn delete" id="toggleBtn-staff" style="width: 100%; text-align: center; justify-content: center;">Oprește (STOP)</button>
+          </div>
+          
+          <div class="editor-selector-panel" style="padding: 1.25rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.75rem;">
+            <strong style="color: var(--text-light); font-size: 0.95rem;">Cerere Gang</strong>
+            <span id="statusBadge-gang" class="badge badge-fine">DESCHISE</span>
+            <button class="action-badge-btn delete" id="toggleBtn-gang" style="width: 100%; text-align: center; justify-content: center;">Oprește (STOP)</button>
+          </div>
+          
+        </div>
+      </div>
+
+      <!-- Card 2: Applications table -->
+      <div class="manager-card" style="margin-bottom: 2rem;">
+        <h2 class="manager-card-title">Cereri și Aplicații În Curs</h2>
+        <div class="responsive-table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Tip Formular</th>
+                <th style="width: 25%;">Candidat / Nume OOC</th>
+                <th style="width: 20%;">Dată Trimitere</th>
+                <th style="width: 15%;">Status</th>
+                <th style="width: 15%; text-align: right;">Opțiuni</th>
+              </tr>
+            </thead>
+            <tbody id="applicationsTableBody">
+              <!-- populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Card 3: Application processing logs -->
+      <div class="manager-card">
+        <h2 class="manager-card-title">Istoric Decizii & Rezultate Aplicații</h2>
+        <div class="responsive-table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width: 18%;">Dată Decizie</th>
+                <th style="width: 17%;">Tip Formular</th>
+                <th style="width: 20%;">Candidat</th>
+                <th style="width: 15%;">Decizie Staff</th>
+                <th style="width: 15%;">Examinator</th>
+                <th style="width: 15%;">Detalii / Motiv</th>
+              </tr>
+            </thead>
+            <tbody id="appLogsTableBody">
+              <!-- populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Application Detail Modal -->
+  <div class="modal-overlay" id="appDetailModal">
+    <div class="modal-card" style="max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;">
+      <button class="modal-close" id="closeAppDetailBtn">&times;</button>
+      <h2 id="detailAppTitle" style="margin-bottom: 1rem; font-family: 'Outfit', sans-serif; border-bottom: 1px solid var(--border-light); padding-bottom: 0.75rem; color: var(--text-light);">Detalii Aplicație</h2>
+      <div id="detailAppContent" style="flex: 1; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1.5rem; line-height: 1.5;">
+        <!-- fields populated dynamically -->
+      </div>
+      <div id="detailAppActions" style="display: flex; gap: 1rem; justify-content: flex-end; border-top: 1px solid var(--border-light); padding-top: 1rem;">
+        <!-- accept/reject buttons -->
+      </div>
+    </div>
   </div>
 
   <!-- Toast Notification Container -->

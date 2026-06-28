@@ -1365,3 +1365,59 @@ header.scrolled {
   flex-shrink: 0;
   margin-left: auto; /* Împinge badge-urile maxim la dreapta */
 }
+
+/* Info action button style */
+.action-badge-btn.info {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+.action-badge-btn.info:hover {
+  background: rgba(0, 188, 212, 0.1);
+}
+
+/* Premium custom radio segment selectors */
+.radio-group-premium {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+.radio-tile {
+  position: relative;
+  flex: 1;
+  max-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.radio-tile input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.radio-tile-label {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 0.6rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.radio-tile input:checked + .radio-tile-label {
+  background: rgba(226, 27, 60, 0.1);
+  border-color: var(--primary);
+  color: var(--text-light);
+  box-shadow: var(--shadow-neon);
+}
+.radio-tile-label:hover {
+  border-color: var(--primary);
+  color: var(--text-light);
+  background: rgba(255, 255, 255, 0.04);
+}

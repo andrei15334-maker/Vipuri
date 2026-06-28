@@ -559,6 +559,54 @@
   },
   "logs": [
     {
+      "timestamp": "2026-06-28T19:08:54.484Z",
+      "username": "andrei15334",
+      "fullName": "andrei cristian",
+      "action": "A schimbat statusul aplicațiilor pentru GANG în ÎNCHISE."
+    },
+    {
+      "timestamp": "2026-06-28T19:08:53.943Z",
+      "username": "andrei15334",
+      "fullName": "andrei cristian",
+      "action": "A schimbat statusul aplicațiilor pentru STAFF în ÎNCHISE."
+    },
+    {
+      "timestamp": "2026-06-28T19:08:53.367Z",
+      "username": "andrei15334",
+      "fullName": "andrei cristian",
+      "action": "A schimbat statusul aplicațiilor pentru POLICE în ÎNCHISE."
+    },
+    {
+      "timestamp": "2026-06-28T19:08:51.931Z",
+      "username": "andrei15334",
+      "fullName": "andrei cristian",
+      "action": "A schimbat statusul aplicațiilor pentru SMURD în ÎNCHISE."
+    },
+    {
+      "timestamp": "2026-06-28T19:04:23.307Z",
+      "username": "manager_staff",
+      "fullName": "Manager Principal",
+      "action": "A acceptat aplicația (SMURD) lui \"ID: 999\"."
+    },
+    {
+      "timestamp": "2026-06-28T19:01:52.092Z",
+      "username": "manager_staff",
+      "fullName": "Manager Principal",
+      "action": "A acceptat aplicația (SMURD) lui \"ID: 999\"."
+    },
+    {
+      "timestamp": "2026-06-28T18:59:23.977Z",
+      "username": "manager_staff",
+      "fullName": "Manager Principal",
+      "action": "A acceptat aplicația (SMURD) lui \"ID: 999\"."
+    },
+    {
+      "timestamp": "2026-06-28T18:55:55.352Z",
+      "username": "manager_staff",
+      "fullName": "Manager Principal",
+      "action": "A acceptat aplicația (SMURD) lui \"ID: 999\"."
+    },
+    {
       "timestamp": "2026-06-27T21:54:01.598Z",
       "username": "manager_staff",
       "fullName": "Manager Principal",
@@ -593,6 +641,178 @@
       "username": "manager_staff",
       "fullName": "Manager Principal",
       "action": "A modificat textul subcapitolului \"1.1 Ce este Roleplay-ul (RP)?\" din categoria \"Regulament General\"."
+    }
+  ],
+  "applications": [
+    {
+      "id": "app_1782672943264_pv37cqtlt",
+      "type": "smurd",
+      "status": "pending",
+      "submittedAt": "2026-06-28T18:55:43.265Z",
+      "formData": {
+        "idJoc": "1042",
+        "varsta": "19",
+        "oreJucate": "15",
+        "motiv": "Doresc sa ajut comunitatea si sa salvez vieti in joc.",
+        "cazier": "NU",
+        "consecinteCoruptie": "DA"
+      },
+      "processedBy": null,
+      "processedByName": null,
+      "processedAt": null,
+      "rejectReason": null
+    },
+    {
+      "id": "app_1782672955337_rjcv7ctm0",
+      "type": "smurd",
+      "status": "accepted",
+      "submittedAt": "2026-06-28T18:55:55.337Z",
+      "formData": {
+        "idJoc": "999",
+        "varsta": "20",
+        "oreJucate": "12",
+        "motiv": "Deoarece vreau sa fiu medic.",
+        "cazier": "NU",
+        "consecinteCoruptie": "DA"
+      },
+      "processedBy": "manager_staff",
+      "processedByName": "Manager Principal",
+      "processedAt": "2026-06-28T18:55:55.352Z",
+      "rejectReason": null
+    },
+    {
+      "id": "app_1782673163963_co7w64e3g",
+      "type": "smurd",
+      "status": "accepted",
+      "submittedAt": "2026-06-28T18:59:23.963Z",
+      "formData": {
+        "idJoc": "999",
+        "varsta": "20",
+        "oreJucate": "12",
+        "motiv": "Deoarece vreau sa fiu medic.",
+        "cazier": "NU",
+        "consecinteCoruptie": "DA"
+      },
+      "processedBy": "manager_staff",
+      "processedByName": "Manager Principal",
+      "processedAt": "2026-06-28T18:59:23.977Z",
+      "rejectReason": null
+    },
+    {
+      "id": "app_1782673312082_seyddzzu2",
+      "type": "smurd",
+      "status": "accepted",
+      "submittedAt": "2026-06-28T19:01:52.082Z",
+      "formData": {
+        "idJoc": "999",
+        "varsta": "20",
+        "oreJucate": "12",
+        "motiv": "Deoarece vreau sa fiu medic.",
+        "cazier": "NU",
+        "consecinteCoruptie": "DA"
+      },
+      "processedBy": "manager_staff",
+      "processedByName": "Manager Principal",
+      "processedAt": "2026-06-28T19:01:52.092Z",
+      "rejectReason": null
+    },
+    {
+      "id": "app_1782673463294_denju4h9y",
+      "type": "smurd",
+      "status": "accepted",
+      "submittedAt": "2026-06-28T19:04:23.294Z",
+      "formData": {
+        "idJoc": "999",
+        "varsta": "20",
+        "oreJucate": "12",
+        "motiv": "Deoarece vreau sa fiu medic.",
+        "cazier": "NU",
+        "consecinteCoruptie": "DA"
+      },
+      "processedBy": "manager_staff",
+      "processedByName": "Manager Principal",
+      "processedAt": "2026-06-28T19:04:23.307Z",
+      "rejectReason": null
+    }
+  ],
+  "appStatus": {
+    "police": false,
+    "smurd": false,
+    "staff": false,
+    "gang": false
+  },
+  "applicationLogs": [
+    {
+      "timestamp": "2026-06-28T19:04:23.307Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "accepted",
+      "processedBy": "Manager Principal",
+      "reason": "Acceptat"
+    },
+    {
+      "timestamp": "2026-06-28T19:04:23.295Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "pending",
+      "processedBy": "Sistem",
+      "reason": "Aplicație trimisă."
+    },
+    {
+      "timestamp": "2026-06-28T19:01:52.092Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "accepted",
+      "processedBy": "Manager Principal",
+      "reason": "Acceptat"
+    },
+    {
+      "timestamp": "2026-06-28T19:01:52.082Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "pending",
+      "processedBy": "Sistem",
+      "reason": "Aplicație trimisă."
+    },
+    {
+      "timestamp": "2026-06-28T18:59:23.977Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "accepted",
+      "processedBy": "Manager Principal",
+      "reason": "Acceptat"
+    },
+    {
+      "timestamp": "2026-06-28T18:59:23.965Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "pending",
+      "processedBy": "Sistem",
+      "reason": "Aplicație trimisă."
+    },
+    {
+      "timestamp": "2026-06-28T18:55:55.352Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "accepted",
+      "processedBy": "Manager Principal",
+      "reason": "Acceptat"
+    },
+    {
+      "timestamp": "2026-06-28T18:55:55.337Z",
+      "appType": "smurd",
+      "applicantName": "ID: 999",
+      "status": "pending",
+      "processedBy": "Sistem",
+      "reason": "Aplicație trimisă."
+    },
+    {
+      "timestamp": "2026-06-28T18:55:43.265Z",
+      "appType": "smurd",
+      "applicantName": "ID: 1042",
+      "status": "pending",
+      "processedBy": "Sistem",
+      "reason": "Aplicație trimisă."
     }
   ]
 }

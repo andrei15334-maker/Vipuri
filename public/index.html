@@ -26,20 +26,21 @@
       <!-- Categories Selector -->
       <nav class="nav-categories" id="categoriesNav">
         <!-- populated dynamically -->
-        <button class="category-tab active" data-category="general">Regulament General</button>
+        <button class="category-tab" data-category="general">Regulament General</button>
         <button class="category-tab" data-category="sanctiuni">Sancțiuni</button>
         <button class="category-tab" data-category="pd">Poliție</button>
         <button class="category-tab" data-category="smurd">SMURD</button>
         <button class="category-tab" data-category="mafii">Mafii/Gang</button>
         <button class="category-tab" data-category="cod-penal">Cod Penal</button>
         <button class="category-tab" data-category="lideri">Lideri</button>
+        <button class="category-tab" data-category="applications" id="applicationsNavBtn" style="border: 1px solid var(--primary); background: rgba(226, 27, 60, 0.05); color: var(--primary);">Aplicații</button>
       </nav>
 
       <div class="header-actions" id="headerActions">
         <!-- Auth state widgets will go here dynamically -->
         <button class="btn-primary" id="openAuthBtn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          Conectare Staff
+          Conectare
         </button>
       </div>
     </div>
@@ -91,7 +92,7 @@
       <button class="modal-close" id="closeAuthBtn">&times;</button>
       <div class="modal-tabs">
         <button class="modal-tab-btn active" data-tab="login">Autentificare</button>
-        <button class="modal-tab-btn" data-tab="register">Înregistrare Staff</button>
+        <button class="modal-tab-btn" data-tab="register">Înregistrare</button>
       </div>
 
       <!-- Login Form -->
@@ -128,8 +129,12 @@
         <div class="form-group">
           <label class="form-label" for="regRole">Rol Solicitat</label>
           <select class="form-select" id="regRole" required>
-            <option value="admin" selected>Admin (Editează Regulamente)</option>
-            <option value="manager">Manager Staff (Aprobă cereri & Roluri)</option>
+            <option value="admin" selected>Admin (Vizualizare Aplicații & Reg)</option>
+            <option value="manager">Manager Staff (Management General)</option>
+            <option value="tester-pd">Tester PD (Gestiune Aplicații Poliție)</option>
+            <option value="tester-smurd">Tester SMURD (Gestiune Aplicații SMURD)</option>
+            <option value="tester-staff">Tester Staff (Gestiune Aplicații Staff)</option>
+            <option value="manager-mafii">Manager Mafii / Gang (Gestiune Cereri Gang)</option>
           </select>
         </div>
         <button type="submit" class="btn-primary" style="justify-content: center; margin-top: 0.5rem;">Trmite Cererea</button>

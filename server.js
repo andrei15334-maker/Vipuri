@@ -47,6 +47,14 @@ function requireManager(req, res, next) {
   next();
 }
 
+function requireStaff(req, res, next) {
+  const validRoles = ['admin', 'manager', 'tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'];
+  if (!req.session.userId || !validRoles.includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, message: "Acces refuzat. Necesită grad de Staff." });
+  }
+  next();
+}
+
 // ----------------------------------------------------
 // RUTĂ AUTENTIFICARE (AUTH API)
 // ----------------------------------------------------
@@ -235,8 +243,69 @@ app.post('/api/admin/users/delete', requireManager, (req, res) => {
 });
 
 // Listare loguri activitate (accesibil pentru tot staff-ul)
-app.get('/api/admin/logs', requireAdmin, (req, res) => {
+app.get('/api/admin/logs', requireStaff, (req, res) => {
   res.json({ success: true, logs: db.getLogs() });
+});
+
+// ====================================================
+// APIS PENTRU APLICAȚII JUCĂTORI (PUBLIC & ADMIN)
+// ====================================================
+
+// Status aplicații (public)
+app.get('/api/applications/status', (req, res) => {
+  res.json({ success: true, status: db.getApplicationsStatus() });
+});
+
+// Trimitere aplicație (public)
+app.post('/api/applications/submit', (req, res) => {
+  const { type, formData } = req.body;
+  if (!type || !formData) {
+    return res.status(400).json({ success: false, message: "Lipsesc parametri obligatorii." });
+  }
+
+  const result = db.submitApplication(type, formData);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
+// Listare toate aplicațiile (doar staff)
+app.get('/api/admin/applications', requireStaff, (req, res) => {
+  res.json({ success: true, applications: db.getApplications() });
+});
+
+// Pornire / oprire aplicații (doar staff)
+app.post('/api/admin/applications/toggle', requireStaff, (req, res) => {
+  const { type, isOpen } = req.body;
+  if (!type || isOpen === undefined) {
+    return res.status(400).json({ success: false, message: "Lipsesc parametri." });
+  }
+
+  const result = db.toggleApplicationStatus(type, isOpen, req.session.userId, req.session.userName);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
+// Procesare aplicație (Accept/Reject - doar staff)
+app.post('/api/admin/applications/process', requireStaff, (req, res) => {
+  const { appId, status, reason } = req.body;
+  if (!appId || !status) {
+    return res.status(400).json({ success: false, message: "Lipsesc parametri de procesare." });
+  }
+
+  const result = db.processApplication(appId, status, reason, req.session.userId, req.session.userName);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
+// Listare loguri aplicații separate (doar staff)
+app.get('/api/admin/applications/logs', requireStaff, (req, res) => {
+  res.json({ success: true, logs: db.getApplicationLogs() });
 });
 
 // Pornire server

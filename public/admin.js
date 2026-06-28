@@ -16,6 +16,16 @@ const logsTab = document.getElementById('logsTab');
 const logsTableBody = document.getElementById('logsTableBody');
 const toastContainer = document.getElementById('toastContainer');
 
+// Elemente Gestiune Aplicații
+const applicationsTab = document.getElementById('applicationsTab');
+const applicationsTableBody = document.getElementById('applicationsTableBody');
+const appLogsTableBody = document.getElementById('appLogsTableBody');
+const appDetailModal = document.getElementById('appDetailModal');
+const closeAppDetailBtn = document.getElementById('closeAppDetailBtn');
+const detailAppTitle = document.getElementById('detailAppTitle');
+const detailAppContent = document.getElementById('detailAppContent');
+const detailAppActions = document.getElementById('detailAppActions');
+
 // Editor DOM
 const editCategorySelect = document.getElementById('editCategorySelect');
 const editChapterSelect = document.getElementById('editChapterSelect');
@@ -87,28 +97,57 @@ async function checkAuthAndInit() {
     currentUser = data.user;
     
     // Verificare rol
-    if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+    const validRoles = ['admin', 'manager', 'tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'];
+    if (!validRoles.includes(currentUser.role)) {
       showToast("Acces interzis. Nu faci parte din staff.", "error");
       setTimeout(() => window.location.href = '/', 1500);
       return;
     }
 
     // Setare Badge Rol
-    roleBadge.textContent = currentUser.role === 'manager' ? 'Manager Staff' : 'Admin';
+    let roleText = 'Staff';
+    if (currentUser.role === 'manager') roleText = 'Manager Staff';
+    else if (currentUser.role === 'admin') roleText = 'Admin';
+    else if (currentUser.role === 'tester-pd') roleText = 'Tester PD';
+    else if (currentUser.role === 'tester-smurd') roleText = 'Tester SMURD';
+    else if (currentUser.role === 'tester-staff') roleText = 'Tester Staff';
+    else if (currentUser.role === 'manager-mafii') roleText = 'Manager Mafii';
+    roleBadge.textContent = roleText;
     
     // Afișare tab Logs pentru tot staff-ul
     logsTab.style.display = 'inline-block';
     
+    // Configurare vizibilitate taburi bazat pe rol
+    const editorTabBtn = document.querySelector('[data-target="editorPanel"]');
+    const isTester = ['tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'].includes(currentUser.role);
+    
+    if (isTester) {
+      // Ascunde editorul pentru testeri
+      if (editorTabBtn) editorTabBtn.style.display = 'none';
+      
+      // Activează tab-ul de aplicații implicit
+      document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+      applicationsTab.classList.add('active');
+      
+      document.querySelectorAll('.admin-tab-panel').forEach(panel => panel.classList.remove('active'));
+      document.getElementById('applicationsPanel').classList.add('active');
+      
+      // Încarcă panoul de aplicații
+      loadApplicationsPanel();
+    } else {
+      // Pentru manager sau admin de regulamente
+      if (editorTabBtn) editorTabBtn.style.display = 'inline-block';
+      // Încărcare date regulamente pentru editor
+      await fetchRulesData();
+      populateChapters();
+    }
+
     // Afișare tab Manager dacă este cazul
     if (currentUser.role === 'manager') {
       managerTab.style.display = 'inline-block';
       loadPendingUsers();
       loadActiveStaff();
     }
-
-    // Încărcare date regulamente pentru editor
-    await fetchRulesData();
-    populateChapters();
 
   } catch (error) {
     showToast("Eroare la verificarea conexiunii cu serverul.", "error");
@@ -161,6 +200,8 @@ function setupEventListeners() {
       loadActiveStaff();
     } else if (target === 'logsPanel') {
       loadLogs();
+    } else if (target === 'applicationsPanel') {
+      loadApplicationsPanel();
     }
   });
 
@@ -224,6 +265,9 @@ function setupEventListeners() {
       `;
     }
   });
+
+  // Setup pentru modalul de detalii aplicație și butoane de toggle
+  setupApplicationsTabEventListeners();
 }
 
 // ==========================================
@@ -634,4 +678,385 @@ function renderLogs(logs) {
     `;
     logsTableBody.appendChild(tr);
   });
+}
+
+// ==========================================
+// SECTIUNE GESTIUNE APLICATII (ADMIN)
+// ==========================================
+let currentApplicationsList = [];
+let currentAppStatuses = { police: true, smurd: true, staff: true, gang: true };
+
+function setupApplicationsTabEventListeners() {
+  const types = ['smurd', 'police', 'staff', 'gang'];
+  types.forEach(type => {
+    const btn = document.getElementById(`toggleBtn-${type}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        const currentIsOpen = currentAppStatuses[type];
+        toggleAppStatus(type, currentIsOpen);
+      });
+    }
+  });
+
+  if (closeAppDetailBtn) {
+    closeAppDetailBtn.addEventListener('click', () => {
+      appDetailModal.classList.remove('active');
+    });
+  }
+}
+
+async function loadApplicationsPanel() {
+  await loadAppStatuses();
+  await loadPendingApplications();
+  await loadApplicationLogs();
+}
+
+async function loadAppStatuses() {
+  try {
+    const response = await fetch('/api/applications/status');
+    const data = await response.json();
+    if (data.success && data.status) {
+      currentAppStatuses = data.status;
+      const types = ['smurd', 'police', 'staff', 'gang'];
+      types.forEach(type => {
+        const isOpen = currentAppStatuses[type];
+        const badge = document.getElementById(`statusBadge-${type}`);
+        const btn = document.getElementById(`toggleBtn-${type}`);
+
+        if (badge) {
+          badge.textContent = isOpen ? "DESCHISE" : "ÎNCHISE";
+          badge.className = isOpen ? "badge badge-fine" : "badge badge-warn";
+        }
+
+        if (btn) {
+          btn.textContent = isOpen ? "Oprește (STOP)" : "Pornește (START)";
+          btn.className = isOpen ? "action-badge-btn delete" : "action-badge-btn approve";
+          
+          // Permisiuni buton toggle (doar Testeri dedicati sau Admin/Manager)
+          const hasAccess = canProcessAppType(currentUser.role, type);
+          btn.disabled = !hasAccess;
+          if (!hasAccess) {
+            btn.style.opacity = '0.3';
+            btn.style.cursor = 'not-allowed';
+          } else {
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Eroare incarcare status aplicatii:", error);
+  }
+}
+
+async function toggleAppStatus(type, currentIsOpen) {
+  try {
+    const response = await fetch('/api/admin/applications/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, isOpen: !currentIsOpen })
+    });
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Aplicațiile pentru ${type.toUpperCase()} au fost ${!currentIsOpen ? 'deschise' : 'închise'}.`, "success");
+      loadAppStatuses();
+    } else {
+      showToast(data.message, "error");
+    }
+  } catch (error) {
+    showToast("Eroare la schimbarea statusului aplicațiilor.", "error");
+  }
+}
+
+async function loadPendingApplications() {
+  try {
+    const response = await fetch('/api/admin/applications');
+    const data = await response.json();
+    if (data.success && data.applications) {
+      currentApplicationsList = data.applications;
+      renderApplicationsTable(data.applications);
+    }
+  } catch (error) {
+    showToast("Eroare la încărcarea aplicațiilor.", "error");
+  }
+}
+
+function renderApplicationsTable(apps) {
+  applicationsTableBody.innerHTML = '';
+  
+  // Filtrare aplicatii pe baza rolului
+  const filteredApps = apps.filter(app => {
+    if (currentUser.role === 'manager' || currentUser.role === 'admin') return true;
+    if (currentUser.role === 'tester-pd' && app.type === 'police') return true;
+    if (currentUser.role === 'tester-smurd' && app.type === 'smurd') return true;
+    if (currentUser.role === 'tester-staff' && app.type === 'staff') return true;
+    if (currentUser.role === 'manager-mafii' && app.type === 'gang') return true;
+    return false;
+  });
+
+  // Arată doar cele "pending" în acest tabel principal
+  const pendingApps = filteredApps.filter(app => app.status === 'pending');
+
+  if (pendingApps.length === 0) {
+    applicationsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dark); padding: 2rem;">Nicio aplicație în așteptare pentru specializarea ta.</td></tr>';
+    return;
+  }
+
+  pendingApps.forEach(app => {
+    const tr = document.createElement('tr');
+    
+    // Nume candidat
+    let candidateName = "Jucător";
+    const type = app.type;
+    const formData = app.formData;
+    if (type === 'police' && formData.numeOoc) candidateName = formData.numeOoc;
+    else if (type === 'smurd' && formData.idJoc) candidateName = `ID: ${formData.idJoc}`;
+    else if (type === 'staff' && formData.numeVarsta) candidateName = formData.numeVarsta;
+    else if (type === 'gang' && formData.numeOoc) candidateName = formData.numeOoc;
+
+    const dateStr = new Date(app.submittedAt).toLocaleDateString('ro-RO', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    let friendlyType = '';
+    if (type === 'smurd') friendlyType = 'SMURD';
+    else if (type === 'police') friendlyType = 'Poliție';
+    else if (type === 'staff') friendlyType = 'Staff';
+    else if (type === 'gang') friendlyType = 'Gang/Mafie';
+
+    tr.innerHTML = `
+      <td><strong style="color: var(--text-light);">${friendlyType}</strong></td>
+      <td>${candidateName}</td>
+      <td style="color: var(--text-dark);">${dateStr}</td>
+      <td><span class="badge badge-warn">ÎN CURS</span></td>
+      <td style="text-align: right;">
+        <button class="action-badge-btn info" data-id="${app.id}">Vizualizează</button>
+      </td>
+    `;
+
+    tr.querySelector('.info').addEventListener('click', () => {
+      viewApplicationDetails(app.id);
+    });
+
+    applicationsTableBody.appendChild(tr);
+  });
+}
+
+function viewApplicationDetails(appId) {
+  const app = currentApplicationsList.find(a => a.id === appId);
+  if (!app) return;
+
+  const type = app.type;
+  const formData = app.formData;
+  
+  let friendlyType = '';
+  if (type === 'smurd') friendlyType = 'SMURD';
+  else if (type === 'police') friendlyType = 'Poliție';
+  else if (type === 'staff') friendlyType = 'Staff';
+  else if (type === 'gang') friendlyType = 'Gang/Mafie';
+
+  detailAppTitle.textContent = `Aplicație ${friendlyType} - Detalii Completate`;
+
+  let detailsHtml = '<div style="display: flex; flex-direction: column; gap: 1rem;">';
+
+  if (type === 'smurd') {
+    detailsHtml += `
+      <p><strong>1. ID Jucător:</strong> ${formData.idJoc}</p>
+      <p><strong>2. Vârstă:</strong> ${formData.varsta} ani</p>
+      <p><strong>3. Ore jucate:</strong> ${formData.oreJucate}</p>
+      <p><strong>4. De ce doriți să vă alăturați:</strong><br><span style="color: var(--text-light);">${formData.motiv}</span></p>
+      <p><strong>5. Cazier la activ:</strong> ${formData.cazier}</p>
+      <p><strong>6. Conștient de consecințe corupție:</strong> ${formData.consecinteCoruptie}</p>
+    `;
+  } else if (type === 'police') {
+    detailsHtml += `
+      <h3 style="color: var(--primary); font-size: 0.95rem; margin-top: 0.5rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.25rem;">Date Out-Of-Character (OOC)</h3>
+      <p><strong>Nume Prenume OOC:</strong> ${formData.numeOoc}</p>
+      <p><strong>Vârstă OOC:</strong> ${formData.varstaOoc} ani</p>
+      <p><strong>Calități:</strong><br><span style="color: var(--text-light);">${formData.calitati}</span></p>
+      <p><strong>Defecte:</strong><br><span style="color: var(--text-light);">${formData.defecte}</span></p>
+      <p><strong>Descriere personală:</strong><br><span style="color: var(--text-light);">${formData.descriere}</span></p>
+      <p><strong>Ore jucate:</strong> ${formData.oreJucate}</p>
+      <p><strong>Ore dedicate zilnic:</strong> ${formData.oreZilnice}</p>
+      <p><strong>Membru organizație:</strong> ${formData.organizatie}</p>
+      <p><strong>Discord Username:</strong> ${formData.discord}</p>
+      <p><strong>Confirmare regulament:</strong> ${formData.confirmare}</p>
+
+      <h3 style="color: var(--primary); font-size: 0.95rem; margin-top: 1.5rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.25rem;">Date In-Character (IC)</h3>
+      <p><strong>Nume Prenume IC:</strong> ${formData.numeIc || 'Nespecificat'}</p>
+      <p><strong>CNP IC:</strong> ${formData.cnpIc || 'Nespecificat'}</p>
+      <p><strong>Vârstă IC:</strong> ${formData.varstaIc || 'Nespecificat'} ani</p>
+      <p><strong>Ai citit regulamentul?</strong> ${formData.cititRegulament || 'Nespecificat'}</p>
+      <p><strong>Povestea Caracterului:</strong><br><span style="color: var(--text-light);">${formData.povesteCaracter || 'Nespecificat'}</span></p>
+      <p><strong>De ce dorește în departament:</strong><br><span style="color: var(--text-light);">${formData.motivDepartament || 'Nespecificat'}</span></p>
+      <p><strong>Unde dorește să ajungă:</strong><br><span style="color: var(--text-light);">${formData.scopPolitist || 'Nespecificat'}</span></p>
+      <p><strong>Poza Buletin IC:</strong></p>
+      <div style="text-align: center; margin-top: 0.5rem;">
+        ${formData.pozaBuletinIc ? `<img src="${formData.pozaBuletinIc}" style="max-width: 100%; max-height: 220px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);"/>` : '<span style="font-style:italic; color:var(--text-dark);">Fără imagine buletin.</span>'}
+      </div>
+    `;
+  } else if (type === 'staff') {
+    detailsHtml += `
+      <p><strong>Email:</strong> ${formData.email}</p>
+      <p><strong>Nume + Vârstă:</strong> ${formData.numeVarsta}</p>
+      <p><strong>Ore jucate:</strong> ${formData.oreJucate}</p>
+      <p><strong>Discord Username:</strong> ${formData.discord}</p>
+      <p><strong>ID Server:</strong> ${formData.idServer}</p>
+      <p><strong>Conștient de posibila respingere:</strong> ${formData.cunoscutRespingere}</p>
+      <p><strong>Rating Regulament (1-10):</strong> ${formData.ratingRegulament}</p>
+      <p><strong>Motiv Aplicare:</strong><br><span style="color: var(--text-light);">${formData.motivAplicare}</span></p>
+      <p><strong>Experiență Staff anterioară:</strong><br><span style="color: var(--text-light);">${formData.experientaStaff}</span></p>
+      <p><strong>Acord fairplay:</strong> ${formData.fairplayPrieteni}</p>
+      <p><strong>De ce merită funcția:</strong><br><span style="color: var(--text-light);">${formData.deCeMerit}</span></p>
+      <p><strong>Timp alocat zilnic:</strong> ${formData.timpZilnic} ore</p>
+      <p><strong>Altercații Staff:</strong><br><span style="color: var(--text-light);">${formData.altercatiiStaff}</span></p>
+      <p><strong>Cu ce se ocupă staff-ul:</strong><br><span style="color: var(--text-light);">${formData.rolStaff}</span></p>
+      <p><strong>Descriere personală:</strong><br><span style="color: var(--text-light);">${formData.descrierePersonala}</span></p>
+    `;
+  } else if (type === 'gang') {
+    detailsHtml += `
+      <p><strong>[OOC] Nume Lider:</strong> ${formData.numeOoc}</p>
+      <p><strong>[OOC] Ore server:</strong> ${formData.oreServer}</p>
+      <p><strong>[OOC] ID-uri membri:</strong> ${formData.idMembrii}</p>
+      <p><strong>[IC] Nume Organizație:</strong> ${formData.numeOrganizatie}</p>
+      <p><strong>[IC] Telefon Lider:</strong> ${formData.telefonLider}</p>
+      <p><strong>[IC] Poveste Organizație:</strong><br><span style="color: var(--text-light);">${formData.povesteOrganizatie}</span></p>
+      <p><strong>Logo / Poze Organizație:</strong></p>
+      <div style="text-align: center; margin-top: 1rem;">
+        <img src="${formData.pozeOrganizatie}" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);">
+      </div>
+    `;
+  }
+
+  detailsHtml += '</div>';
+  detailAppContent.innerHTML = detailsHtml;
+
+  // Verificare permisiuni procesare aplicatie
+  const isPending = app.status === 'pending';
+  const hasProcessingAccess = canProcessAppType(currentUser.role, type) && (currentUser.role !== 'admin');
+
+  detailAppActions.innerHTML = '';
+  if (isPending && (hasProcessingAccess || currentUser.role === 'manager')) {
+    detailAppActions.innerHTML = `
+      <button class="action-badge-btn delete" id="btnRejectApp" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">Respinge Aplicația</button>
+      <button class="action-badge-btn approve" id="btnAcceptApp" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">Acceptă Aplicația</button>
+    `;
+
+    document.getElementById('btnAcceptApp').addEventListener('click', () => {
+      if (confirm(`Sigur dorești să ACCEPȚI această aplicație?`)) {
+        processApp(appId, 'accepted');
+      }
+    });
+
+    document.getElementById('btnRejectApp').addEventListener('click', () => {
+      const reason = prompt("Te rugăm să introduci MOTIVUL RESPINGERII:");
+      if (reason === null) return;
+      if (!reason.trim()) {
+        showToast("Trebuie să specifici un motiv pentru respingere!", "error");
+        return;
+      }
+      processApp(appId, 'rejected', reason.trim());
+    });
+  } else {
+    detailAppActions.innerHTML = `
+      <span style="color: var(--text-dark); font-size: 0.85rem; font-style: italic;">
+        ${!isPending ? `Procesată deja de ${app.processedByName || app.processedBy}` : 'Nu ai drepturi pentru a aproba/respinge această categorie.'}
+      </span>
+    `;
+  }
+
+  appDetailModal.classList.add('active');
+}
+
+async function processApp(appId, status, reason = '') {
+  try {
+    const response = await fetch('/api/admin/applications/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appId, status, reason })
+    });
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Aplicația a fost ${status === 'accepted' ? 'acceptată' : 'respinsă'} cu succes!`, "success");
+      appDetailModal.classList.remove('active');
+      loadApplicationsPanel();
+    } else {
+      showToast(data.message, "error");
+    }
+  } catch (error) {
+    showToast("Eroare la procesarea aplicației.", "error");
+  }
+}
+
+async function loadApplicationLogs() {
+  try {
+    const response = await fetch('/api/admin/applications/logs');
+    const data = await response.json();
+    if (data.success && data.logs) {
+      renderApplicationLogsTable(data.logs);
+    }
+  } catch (error) {
+    console.error("Eroare loguri aplicatii:", error);
+  }
+}
+
+function renderApplicationLogsTable(logs) {
+  appLogsTableBody.innerHTML = '';
+  
+  // Filtrare loguri pe baza rolului
+  const filteredLogs = logs.filter(log => {
+    if (currentUser.role === 'manager' || currentUser.role === 'admin') return true;
+    if (currentUser.role === 'tester-pd' && log.appType === 'police') return true;
+    if (currentUser.role === 'tester-smurd' && log.appType === 'smurd') return true;
+    if (currentUser.role === 'tester-staff' && log.appType === 'staff') return true;
+    if (currentUser.role === 'manager-mafii' && log.appType === 'gang') return true;
+    return false;
+  });
+
+  const processedLogs = filteredLogs.filter(log => log.status !== 'pending');
+
+  if (processedLogs.length === 0) {
+    appLogsTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-dark); padding: 2rem;">Nicio decizie înregistrată încă.</td></tr>';
+    return;
+  }
+
+  processedLogs.forEach(log => {
+    const tr = document.createElement('tr');
+    const date = new Date(log.timestamp);
+    const dateStr = date.toLocaleString('ro-RO', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    let friendlyType = '';
+    if (log.appType === 'smurd') friendlyType = 'SMURD';
+    else if (log.appType === 'police') friendlyType = 'Poliție';
+    else if (log.appType === 'staff') friendlyType = 'Staff';
+    else if (log.appType === 'gang') friendlyType = 'Gang/Mafie';
+
+    const statusBadge = log.status === 'accepted' 
+      ? '<span class="badge badge-fine">ACCEPTAT</span>' 
+      : '<span class="badge badge-warn">RESPINS</span>';
+
+    tr.innerHTML = `
+      <td style="color: var(--text-dark);">${dateStr}</td>
+      <td><strong style="color: var(--text-light);">${friendlyType}</strong></td>
+      <td>${log.applicantName}</td>
+      <td>${statusBadge}</td>
+      <td><strong style="color: var(--text-light);">${log.processedBy}</strong></td>
+      <td style="color: var(--text-muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">
+        ${log.reason || ''}
+      </td>
+    `;
+    appLogsTableBody.appendChild(tr);
+  });
+}
+
+function canProcessAppType(userRole, appType) {
+  if (userRole === 'manager') return true;
+  if (userRole === 'tester-pd' && appType === 'police') return true;
+  if (userRole === 'tester-smurd' && appType === 'smurd') return true;
+  if (userRole === 'tester-staff' && appType === 'staff') return true;
+  if (userRole === 'manager-mafii' && appType === 'gang') return true;
+  return false;
 }
