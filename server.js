@@ -41,7 +41,8 @@ function requireAdmin(req, res, next) {
 }
 
 function requireManager(req, res, next) {
-  if (!req.session.userId || req.session.userRole !== 'manager') {
+  const allowed = ['manager', 'admin'];
+  if (!req.session.userId || !allowed.includes(req.session.userRole)) {
     return res.status(403).json({ success: false, message: "Acces refuzat. Necesită grad de Manager Staff." });
   }
   next();
@@ -80,7 +81,7 @@ app.post('/api/auth/register', (req, res) => {
 
 // Autentificare
 app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, rememberMe } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ success: false, message: "Numele de utilizator și parola sunt obligatorii." });
@@ -108,6 +109,13 @@ app.post('/api/auth/login', (req, res) => {
   req.session.userId = user.username;
   req.session.userName = user.fullName;
   req.session.userRole = user.role;
+
+  // Ajustare durată cookie pe baza checkbox-ului Remember Me
+  if (rememberMe) {
+    req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 7; // 7 zile (Tine-ma logat)
+  } else {
+    req.session.cookie.maxAge = 1000 * 60 * 60 * 2; // 2 ore default
+  }
 
   res.json({
     success: true,
@@ -256,6 +264,21 @@ app.get('/api/applications/status', (req, res) => {
   res.json({ success: true, status: db.getApplicationsStatus() });
 });
 
+// Verificare status aplicație specifică după ID (public)
+app.get('/api/applications/check-status', (req, res) => {
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ success: false, message: "ID-ul aplicației este obligatoriu." });
+  }
+
+  const app = db.getApplications().find(a => a.id === id);
+  if (!app) {
+    return res.json({ success: true, status: 'not_found' });
+  }
+
+  res.json({ success: true, status: app.status, rejectReason: app.rejectReason });
+});
+
 // Trimitere aplicație (public)
 app.post('/api/applications/submit', (req, res) => {
   const { type, formData } = req.body;
@@ -306,6 +329,55 @@ app.post('/api/admin/applications/process', requireStaff, (req, res) => {
 // Listare loguri aplicații separate (doar staff)
 app.get('/api/admin/applications/logs', requireStaff, (req, res) => {
   res.json({ success: true, logs: db.getApplicationLogs() });
+});
+
+// Middleware special pentru editarea întrebărilor
+const requireQuestionsEditor = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ success: false, message: "Neautorizat. Te rugăm să te conectezi." });
+  }
+
+  const role = req.session.userRole;
+  const { type } = req.body;
+
+  // Managerii și adminii au full acces la orice categorie
+  if (role === 'admin' || role === 'manager') {
+    return next();
+  }
+
+  // Testerii au acces doar la categoria din subordinea lor
+  if (type === 'smurd' && role === 'tester-smurd') return next();
+  if (type === 'police' && role === 'tester-pd') return next();
+  if (type === 'staff' && role === 'tester-staff') return next();
+  if (type === 'gang' && role === 'manager-mafii') return next();
+
+  return res.status(403).json({ 
+    success: false, 
+    message: "Nu ai permisiunea de a edita întrebările pentru această categorie." 
+  });
+};
+
+// Obținere întrebări (public)
+app.get('/api/applications/questions', (req, res) => {
+  const { type } = req.query;
+  if (!type) {
+    return res.status(400).json({ success: false, message: "Tipul aplicației este obligatoriu." });
+  }
+  res.json({ success: true, questions: db.getApplicationQuestions(type) });
+});
+
+// Actualizare întrebări (tester / manager)
+app.post('/api/admin/questions/update', requireQuestionsEditor, (req, res) => {
+  const { type, questions } = req.body;
+  if (!type || !Array.isArray(questions)) {
+    return res.status(400).json({ success: false, message: "Lipsesc parametri obligatorii." });
+  }
+
+  const result = db.updateApplicationQuestions(type, questions, req.session.userId, req.session.userName);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
 });
 
 // Pornire server

@@ -65,6 +65,11 @@ async function runTests() {
       }
     });
     console.log("Submit Response Status:", submitRes.statusCode);
+    console.log("Submit Response Body:", submitRes.body);
+    if (submitRes.statusCode !== 200) {
+      console.log("Response indicates failure:", submitRes.body);
+      return;
+    }
     appId = submitRes.body.application.id;
     console.log("Saved App ID:", appId);
   } catch (err) {

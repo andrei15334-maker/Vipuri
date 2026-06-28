@@ -87,7 +87,7 @@ const defaultRules = {
           {
             "id": "sub-sanc-3-1",
             "title": "3.1 Situații de Kick (Afară de pe server)",
-            "content": "• Microfon non-funcțional (după ce încercați să-l ajutați să rezolve problema)\n• Ped buguit (după ce încercați să-l ajutați să rezolve problema)\n• Nume interzis (prima abatere kick, apoi ban între 1-3 zile)\n• AFK în afara zonei de la Primărie"
+            "content": "• Microfon non-funcțional (după ce încercați să-l ajutați să rezolve problema) – Kick\n• Ped buguit (după ce încercați să-l ajutați să rezolve problema) – Kick\n• Nume interzis (prima abatere – Kick, apoi ban 1-3 zile)\n• AFK în afara zonei de la Primărie – Kick"
           },
           {
             "id": "sub-sanc-3-2",
@@ -549,6 +549,55 @@ const defaultRules = {
   }
 };
 
+const defaultQuestions = {
+  smurd: [
+    { id: "q_smurd_1", type: "number", label: "1. ID Jucător (cifre din joc)", required: true, placeholder: "Ex: 1042" },
+    { id: "q_smurd_2", type: "number", label: "2. Vârstă OOC (cifre)", required: true, placeholder: "Vârsta ta reală" },
+    { id: "q_smurd_3", type: "number", label: "3. Ore jucate pe server (minim 10)", required: true, placeholder: "Orele tale pe server" },
+    { id: "q_smurd_4", type: "textarea", label: "4. De ce doriți să vă alăturați acestui departament?", required: true, placeholder: "Scrie argumentele tale..." },
+    { id: "q_smurd_5", type: "radio", label: "5. Aveți un cazier la activ în momentul de față?", options: ["DA", "NU"], required: true },
+    { id: "q_smurd_6", type: "radio", label: "6. Sunteți conștienți de consecințele corupției?", options: ["DA", "NU"], required: true }
+  ],
+  police: [
+    { id: "q_pd_1", type: "text", label: "Nume Prenume OOC (Real)", required: true, placeholder: "Numele tău complet" },
+    { id: "q_pd_2", type: "number", label: "Vârstă OOC (cifre)", required: true, placeholder: "Vârsta ta reală" },
+    { id: "q_pd_3", type: "text", label: "Discord ID (ex: nume#0000 sau nume)", required: true, placeholder: "ID-ul tău de Discord" },
+    { id: "q_pd_4", type: "number", label: "ID Jucător din joc (cifre)", required: true, placeholder: "Ex: 1042" },
+    { id: "q_pd_5", type: "number", label: "Ore jucate pe server (minim 15)", required: true, placeholder: "Ore jucate" },
+    { id: "q_pd_6", type: "textarea", label: "De ce doriți să vă alăturați Poliției?", required: true, placeholder: "Scrie un răspuns detaliat..." },
+    { id: "q_pd_7", type: "radio", label: "Aveți un cazier activ?", options: ["DA", "NU"], required: true },
+    { id: "q_pd_8", type: "radio", label: "Sunteți de acord să respectați ordinele superiorilor?", options: ["DA", "NU"], required: true }
+  ],
+  staff: [
+    { id: "q_staff_1", type: "text", label: "Adresă de e-mail", required: true, placeholder: "Ex: contact@email.com" },
+    { id: "q_staff_2", type: "text", label: "Nume + Vârstă:", required: true, placeholder: "Ex: Andrei, 18 ani" },
+    { id: "q_staff_3", type: "number", label: "Ore jucate pe server (minim 100)", required: true, placeholder: "Ore jucate" },
+    { id: "q_staff_4", type: "text", label: "Discord Username:", required: true, placeholder: "Ex: discord_user" },
+    { id: "q_staff_5", type: "number", label: "ID Server:", required: true, placeholder: "Ex: 1042" },
+    { id: "q_staff_6", type: "radio", label: "Ești conștient că dacă aplicația ta nu va fi destul de dezvoltată și de bine punctată, aceasta poate fi respinsă?", options: ["DA", "NU"], required: true },
+    { id: "q_staff_7", type: "radio", label: "Dezvoltă fiecare întrebare cât mai bine și cât mai în detaliu, nu te grăbi în completarea formularului. Cât de bine cunoști regulamentul serverului?", options: ["1 (Deloc)", "2", "3", "4", "5", "6", "7", "8", "9", "10 (Foarte bine)"], required: true },
+    { id: "q_staff_8", type: "textarea", label: "Ce te-a determinat să aplici în staff?", required: true, placeholder: "Motivele tale..." },
+    { id: "q_staff_9", type: "textarea", label: "Ai mai fost staff pe alte servere? Dacă da, care și ce grade ai avut?", required: true, placeholder: "Experiența anterioară..." },
+    { id: "q_staff_10", type: "radio", label: "Sunteți de acord că trebuie să lăsați prieteniile deoparte și să acționați corect în orice situație?", options: ["DA", "NU"], required: true },
+    { id: "q_staff_11", type: "textarea", label: "De ce credeți că meritați această funcție (Minim 20 cuvinte):", required: true, placeholder: "Argumentele tale..." },
+    { id: "q_staff_12", type: "number", label: "Cât timp ești dispus să investești în fiecare zi?", required: true, placeholder: "Număr de ore" },
+    { id: "q_staff_13", type: "textarea", label: "Ați avut altercații, discuții aprinse cu oricare dintre membrii staff-ului? (exemple):", required: true, placeholder: "Dacă nu ai avut, scrie: Nu am avut." },
+    { id: "q_staff_14", type: "textarea", label: "Cu ce credeți că se ocupă un membru staff?:", required: true, placeholder: "Rolul unui membru staff..." },
+    { id: "q_staff_15", type: "textarea", label: "Descrierea ta personală:", required: true, placeholder: "Detalii despre tine, caracter, hobby-uri..." }
+  ],
+  gang: [
+    { id: "q_gang_1", type: "text", label: "Nume OOC (Real)", required: true, placeholder: "Numele tău" },
+    { id: "q_gang_2", type: "text", label: "Discord ID Lider", required: true, placeholder: "Discord-ul tău" },
+    { id: "q_gang_3", type: "number", label: "ID Lider în joc", required: true, placeholder: "Ex: 999" },
+    { id: "q_gang_4", type: "number", label: "Ore jucate pe server Lider", required: true, placeholder: "Ore jucate" },
+    { id: "q_gang_5", type: "textarea", label: "ID-urile membrilor care fac parte din gang (minim 5 membri)", required: true, placeholder: "Ex: Lider (999), Co-Lider (102)..." },
+    { id: "q_gang_6", type: "text", label: "Numele Organizației / Mafiei", required: true, placeholder: "Ex: Corleone, Yakuza..." },
+    { id: "q_gang_7", type: "text", label: "Număr de telefon în joc Lider", required: true, placeholder: "Ex: 123-456" },
+    { id: "q_gang_8", type: "textarea", label: "Povestea / Istoria Organizației tale", required: true, placeholder: "Descrie trecutul, activitățile și scopul..." },
+    { id: "q_gang_9", type: "file", label: "Dovadă poza cu membrii / buletine (Urcă o imagine reprezentativă)", required: true }
+  ]
+};
+
 class Database {
   constructor() {
     this.data = {
@@ -586,6 +635,10 @@ class Database {
         }
         if (!this.data.applicationLogs) {
           this.data.applicationLogs = [];
+          this.save();
+        }
+        if (!this.data.applicationQuestions) {
+          this.data.applicationQuestions = defaultQuestions;
           this.save();
         }
       } else {
@@ -896,6 +949,30 @@ class Database {
 
   getApplications() {
     return this.data.applications || [];
+  }
+
+  getApplicationQuestions(type) {
+    if (!this.data.applicationQuestions) {
+      this.data.applicationQuestions = defaultQuestions;
+    }
+    return this.data.applicationQuestions[type] || [];
+  }
+
+  updateApplicationQuestions(type, questions, adminUser, adminName) {
+    if (!this.data.applicationQuestions) {
+      this.data.applicationQuestions = defaultQuestions;
+    }
+    this.data.applicationQuestions[type] = questions;
+    
+    let friendlyName = '';
+    if (type === 'smurd') friendlyName = 'SMURD';
+    else if (type === 'police') friendlyName = 'Poliție (PD)';
+    else if (type === 'staff') friendlyName = 'Staff Server';
+    else if (type === 'gang') friendlyName = 'Gang/Mafii';
+
+    this.logAction(adminUser, adminName, `A modificat întrebările de aplicație pentru secțiunea ${friendlyName}.`);
+    this.save();
+    return { success: true, message: `Întrebările pentru ${friendlyName} au fost actualizate cu succes.` };
   }
 }
 

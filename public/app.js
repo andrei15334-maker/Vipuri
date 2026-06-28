@@ -18,6 +18,8 @@ const registerForm = document.getElementById('registerForm');
 const rulesSearch = document.getElementById('rulesSearch');
 const searchResults = document.getElementById('searchResults');
 const toastContainer = document.getElementById('toastContainer');
+const tocSidebar = document.getElementById('tocSidebar');
+const tocList = document.getElementById('tocList');
 
 // ==========================================
 // TOAST NOTIFICATIONS
@@ -308,6 +310,114 @@ function renderRulesText(categoryData) {
 
     rulesContainer.appendChild(chapterDiv);
   });
+  
+  // Generează/actualizează cuprinsul pe pagina curentă (dreapta)
+  updateTOC();
+}
+
+function updateTOC() {
+  if (!tocList) return;
+  tocList.innerHTML = '';
+  
+  const subchapters = document.querySelectorAll('.subchapter-section');
+  if (subchapters.length === 0) {
+    if (tocSidebar) {
+      tocSidebar.style.display = 'none';
+      const mainContent = document.querySelector('.main-content');
+      if (mainContent) mainContent.classList.remove('has-toc');
+    }
+    return;
+  }
+
+  // Afișează sidebar-ul de TOC
+  if (tocSidebar) {
+    tocSidebar.style.display = 'block';
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.classList.add('has-toc');
+  }
+
+  subchapters.forEach(sub => {
+    const titleEl = sub.querySelector('.subchapter-title');
+    if (!titleEl) return;
+
+    // Adaugă subcapitolul ca link principal
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.className = 'toc-item';
+    a.href = `#${sub.id}`;
+    
+    let shortTitle = titleEl.textContent;
+    if (shortTitle.length > 38) {
+      shortTitle = shortTitle.substring(0, 35) + '...';
+    }
+    a.textContent = shortTitle;
+
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const target = document.getElementById(sub.id);
+      if (target) {
+        const yOffset = -90; 
+        const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+
+        target.classList.add('highlighted-pulse');
+        setTimeout(() => target.classList.remove('highlighted-pulse'), 3000);
+      }
+
+      document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
+      a.classList.add('active');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    // Dacă are sub-reguli (bullet points), le adăugăm ca sub-link-uri
+    const paragraphs = sub.querySelectorAll('.subchapter-content p');
+    paragraphs.forEach((p, pIdx) => {
+      const text = p.textContent.trim();
+      if (text.startsWith('•')) {
+        // Generează ID unic pentru paragraf dacă nu are deja
+        if (!p.id) {
+          p.id = `${sub.id}-p-${pIdx}`;
+        }
+
+        // Extragere denumire regulă (până la primul dash sau două puncte)
+        let ruleName = text.replace(/^•\s*/, '').split(/[-–—:]/)[0].trim();
+        if (ruleName.length > 35) {
+          ruleName = ruleName.substring(0, 32) + '...';
+        }
+
+        const subLi = document.createElement('li');
+        const subA = document.createElement('a');
+        subA.className = 'toc-sub-item';
+        subA.href = `#${p.id}`;
+        subA.textContent = ruleName;
+
+        subA.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const target = document.getElementById(p.id);
+          if (target) {
+            const yOffset = -120; // offset mai generos pentru vizibilitate
+            const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+
+            target.classList.add('highlighted-pulse');
+            setTimeout(() => target.classList.remove('highlighted-pulse'), 3000);
+          }
+
+          document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
+          subA.classList.add('active');
+        });
+
+        subLi.appendChild(subA);
+        tocList.appendChild(subLi);
+      }
+    });
+  });
 }
 
 // Helper pentru formatare text reguli în badge-uri vizuale
@@ -319,41 +429,48 @@ function formatRuleText(text) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
-  let badges = [];
+  let primaryBadge = '';
+  let secondaryBadge = '';
 
-  // 1. Extrage Amenzile
+  // 1. Extrage Amenzile (Primar)
   escaped = escaped.replace(/Amenda\s+([0-9.,]+)\$/gi, (match, p1) => {
-    badges.push(`<span class="badge badge-fine">💵 Amendă: ${p1}$</span>`);
+    primaryBadge = `<span class="badge badge-fine">💵 Amendă: ${p1}$</span>`;
     return '';
   });
 
-  // 2. Extrage Sentințele (Închisoare)
-  escaped = escaped.replace(/Sentință\s+([0-9.]+)\s+Luni/gi, (match, p1) => {
-    badges.push(`<span class="badge badge-jail">🔒 Închisoare: ${p1} Luni</span>`);
-    return '';
-  });
-
-  // 3. Extrage Check Points
+  // 2. Extrage Check Points (Primar)
   escaped = escaped.replace(/([0-9.]+)\s+Check\s+Points/gi, (match, p1) => {
-    badges.push(`<span class="badge badge-cp">📍 ${p1} CP</span>`);
+    primaryBadge = `<span class="badge badge-cp">📍 ${p1} CP</span>`;
     return '';
   });
 
-  // 4. Extrage Avertismentele (Warn)
+  // 3. Extrage Sentințele (Închisoare) (Secundar)
+  escaped = escaped.replace(/Sentință\s+([0-9.]+)\s+Luni/gi, (match, p1) => {
+    secondaryBadge = `<span class="badge badge-jail">🔒 Închisoare: ${p1} Luni</span>`;
+    return '';
+  });
+
+  // 4. Extrage Avertismentele (Warn) (Secundar)
   escaped = escaped.replace(/([0-9.]+)\s+Warn/gi, (match, p1) => {
-    badges.push(`<span class="badge badge-warn">⚠️ ${p1} Warn</span>`);
+    secondaryBadge = `<span class="badge badge-warn">⚠️ ${p1} Warn</span>`;
     return '';
   });
 
-  // 5. Extrage Mute minute
+  // 5. Extrage Mute minute (Secundar)
   escaped = escaped.replace(/([0-9.]+)\s+minute/gi, (match, p1) => {
-    badges.push(`<span class="badge badge-jail">🔇 ${p1} Min Mute</span>`);
+    secondaryBadge = `<span class="badge badge-jail">🔇 ${p1} Min Mute</span>`;
     return '';
   });
 
-  // 6. Extrage Ban
+  // 6. Extrage Ban (Secundar)
   escaped = escaped.replace(/Ban\s+Permanent/gi, () => {
-    badges.push(`<span class="badge badge-ban">🚫 Ban Permanent</span>`);
+    secondaryBadge = `<span class="badge badge-ban">🚫 Ban Permanent</span>`;
+    return '';
+  });
+
+  // 7. Extrage Kick (Secundar)
+  escaped = escaped.replace(/Kick/gi, () => {
+    secondaryBadge = `<span class="badge badge-kick">👢 Kick</span>`;
     return '';
   });
 
@@ -366,8 +483,24 @@ function formatRuleText(text) {
 
   cleanText = cleanText.replace(/\s+/g, ' ');
 
-  if (badges.length > 0) {
-    return `<span class="rule-text">${cleanText}</span><span class="rule-badges">${badges.join('')}</span>`;
+  // Adaugă textul "(În funcție de gravitate)" deasupra avertismentelor (warns)
+  if (secondaryBadge && secondaryBadge.includes('badge-warn')) {
+    secondaryBadge = `
+      <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1;">
+        <span style="font-size: 0.62rem; color: var(--text-muted); margin-bottom: 3px; text-align: right; white-space: nowrap; font-weight: 500;">(În funcție de gravitate)</span>
+        ${secondaryBadge}
+      </div>
+    `;
+  }
+
+  if (primaryBadge || secondaryBadge) {
+    return `
+      <span class="rule-text">${cleanText}</span>
+      <div class="rule-badges">
+        <div class="badge-slot primary-slot">${primaryBadge || ''}</div>
+        <div class="badge-slot secondary-slot">${secondaryBadge || ''}</div>
+      </div>
+    `;
   } else {
     return `<span class="rule-text">${cleanText}</span>`;
   }
@@ -386,7 +519,7 @@ function initScrollspy() {
 
   const options = {
     root: null,
-    rootMargin: '-120px 0px -60% 0px', // se activează când e în treimea de sus
+    rootMargin: '-150px 0px -70% 0px', // ajustat pentru o mai mare precizie la reguli individuale
     threshold: 0
   };
 
@@ -395,33 +528,49 @@ function initScrollspy() {
       if (entry.isIntersecting) {
         const id = entry.target.id;
         
-        // Caută link-ul corespunzător în sidebar
-        const activeLink = document.querySelector(`.subchapter-link[href="#${id}"]`);
-        if (activeLink) {
-          // Curăță celelalte link-uri active
-          document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
-          activeLink.classList.add('active');
+        // Cazul 1: S-a intersectat un paragraf de regulă individual (sub-item în TOC)
+        if (id.includes('-p-')) {
+          const activeTocLink = document.querySelector(`.toc-sub-item[href="#${id}"]`);
+          if (activeTocLink) {
+            document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
+            activeTocLink.classList.add('active');
+          }
+        } 
+        // Cazul 2: S-a intersectat o secțiune mare (subcapitol / capitol)
+        else {
+          // Caută link-ul corespunzător în sidebar (stânga)
+          const activeLink = document.querySelector(`.subchapter-link[href="#${id}"]`);
+          if (activeLink) {
+            document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
+            activeLink.classList.add('active');
 
-          // Caută butonul capitolului părinte și extinde-l
-          const chapterItem = activeLink.closest('.chapter-item');
-          if (chapterItem) {
-            // Nu forța închidere dacă e deja deschis, doar asigură active
-            document.querySelectorAll('.chapter-btn').forEach(btn => btn.classList.remove('active'));
-            chapterItem.querySelector('.chapter-btn').classList.add('active');
-            
-            if (!chapterItem.classList.contains('expanded')) {
-              // Colapsează celelalte
-              document.querySelectorAll('.chapter-item').forEach(item => {
-                if (item !== chapterItem) item.classList.remove('expanded');
-              });
-              chapterItem.classList.add('expanded');
+            // Caută butonul capitolului părinte și extinde-l
+            const chapterItem = activeLink.closest('.chapter-item');
+            if (chapterItem) {
+              document.querySelectorAll('.chapter-btn').forEach(btn => btn.classList.remove('active'));
+              chapterItem.querySelector('.chapter-btn').classList.add('active');
+              
+              if (!chapterItem.classList.contains('expanded')) {
+                document.querySelectorAll('.chapter-item').forEach(item => {
+                  if (item !== chapterItem) item.classList.remove('expanded');
+                });
+                chapterItem.classList.add('expanded');
+              }
             }
+          }
+
+          // Caută și activează link-ul corespunzător în TOC (dreapta)
+          const activeTocLink = document.querySelector(`.toc-item[href="#${id}"]`);
+          if (activeTocLink) {
+            document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
+            activeTocLink.classList.add('active');
           }
         }
       }
     });
   }, options);
 
+  // Observăm capitolele mari și fiecare regulă individuală în parte pentru sincronizare fină
   subchapters.forEach(sec => scrollspyObserver.observe(sec));
 }
 
@@ -443,32 +592,49 @@ rulesSearch.addEventListener('input', (e) => {
     const category = allRulesData[catKey];
     category.chapters.forEach(chapter => {
       chapter.subchapters.forEach(sub => {
-        const titleMatch = sub.title.toLowerCase().includes(query);
-        const contentMatch = sub.content.toLowerCase().includes(query);
+        // Împărțim textul pe paragrafe pentru a permite căutarea de reguli individuale
+        const paragraphs = sub.content.split('\n').filter(p => p.trim() !== '');
+        
+        paragraphs.forEach(pText => {
+          // Normalizare text (eliminare cratime, spații etc.) pentru a permite căutarea de tip metagaming -> Meta-Gaming
+          const normalizedPText = pText.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const normalizedQuery = query.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        if (titleMatch || contentMatch) {
-          // Generare snippet
-          let snippet = '';
-          if (contentMatch) {
-            const index = sub.content.toLowerCase().indexOf(query);
-            const start = Math.max(0, index - 40);
-            const end = Math.min(sub.content.length, index + query.length + 80);
-            snippet = (start > 0 ? '...' : '') + sub.content.slice(start, end) + (end < sub.content.length ? '...' : '');
-            
-            // Înlocuire cu mark tag-uri pentru highlight
+          if (normalizedPText.includes(normalizedQuery)) {
             const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-            snippet = snippet.replace(regex, '<mark>$1</mark>');
-          } else {
-            snippet = sub.content.substring(0, 100) + '...';
-          }
+            let highlightedText = pText.replace(regex, '<mark>$1</mark>');
+            
+            // Fallback pentru highlight dacă există cratime/separatori diferiți
+            if (highlightedText === pText) {
+              const queryParts = query.split(/[^a-z0-9]+/i).filter(part => part.length >= 2);
+              queryParts.forEach(part => {
+                const partRegex = new RegExp(`(${escapeRegExp(part)})`, 'gi');
+                highlightedText = highlightedText.replace(partRegex, '<mark>$1</mark>');
+              });
+            }
 
+            results.push({
+              categoryKey: catKey,
+              categoryName: category.title,
+              chapterId: chapter.id,
+              subchapterId: sub.id,
+              subchapterTitle: sub.title,
+              pText: pText,
+              snippet: highlightedText
+            });
+          }
+        });
+
+        // Potrivire pe titlu de capitol (ca fallback secundar)
+        if (sub.title.toLowerCase().includes(query) && !sub.content.toLowerCase().includes(query)) {
           results.push({
             categoryKey: catKey,
             categoryName: category.title,
             chapterId: chapter.id,
             subchapterId: sub.id,
             subchapterTitle: sub.title,
-            snippet: snippet
+            pText: null,
+            snippet: sub.content.substring(0, 100) + '...'
           });
         }
       });
@@ -497,8 +663,7 @@ function renderSearchResults(results, query) {
       const div = document.createElement('div');
       div.className = 'search-result-item';
       div.innerHTML = `
-        <div class="search-result-path">${res.categoryName}</div>
-        <div class="search-result-title">${res.subchapterTitle}</div>
+        <div class="search-result-path">${res.categoryName} &rsaquo; ${res.subchapterTitle}</div>
         <div class="search-result-snippet">${res.snippet}</div>
       `;
 
@@ -517,13 +682,49 @@ function renderSearchResults(results, query) {
           }
         }
 
-        // Salt la subcapitol cu scroll și expandare
+        // Salt la subcapitol sau paragraf cu scroll și expandare
         setTimeout(() => {
           const targetEl = document.getElementById(res.subchapterId);
           if (targetEl) {
-            targetEl.scrollIntoView({ behavior: 'smooth' });
-            targetEl.classList.add('highlighted-pulse');
-            setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3500);
+            if (res.pText) {
+              // Căutăm exact paragraful care conține textul regulii
+              const paragraphs = targetEl.querySelectorAll('.subchapter-content p');
+              let foundParagraph = null;
+              
+              // Curățăm textul pentru a asigura potrivirea în ciuda caracterelor bullet sau HTML
+              const cleanSearchText = res.pText.replace(/^[•\s\-\*]+/g, '').trim();
+              
+              for (const p of paragraphs) {
+                if (p.textContent.includes(cleanSearchText)) {
+                  foundParagraph = p;
+                  break;
+                }
+              }
+              
+              if (foundParagraph) {
+                // Scroll la paragraful exact
+                const yOffset = -120;
+                const y = foundParagraph.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+                
+                foundParagraph.classList.add('highlighted-pulse');
+                setTimeout(() => foundParagraph.classList.remove('highlighted-pulse'), 3500);
+              } else {
+                // Fallback la titlul subcapitolului
+                const yOffset = -90;
+                const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+                targetEl.classList.add('highlighted-pulse');
+                setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3500);
+              }
+            } else {
+              // Scroll direct la subcapitol
+              const yOffset = -90;
+              const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+              window.scrollTo({ top: y, behavior: 'smooth' });
+              targetEl.classList.add('highlighted-pulse');
+              setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3500);
+            }
 
             // Activare în sidebar
             const activeLink = document.querySelector(`.subchapter-link[href="#${res.subchapterId}"]`);
@@ -598,12 +799,13 @@ loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const username = document.getElementById('loginUsername').value;
   const password = document.getElementById('loginPassword').value;
+  const rememberMe = document.getElementById('loginRememberMe').checked;
 
   try {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, rememberMe })
     });
     
     const data = await response.json();
@@ -614,8 +816,9 @@ loginForm.addEventListener('submit', async (e) => {
       renderUserWidget();
       closeModal();
       
-      // Auto-redirect la admin dacă are drepturi
-      if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+      // Auto-redirect la admin dacă are grad staff
+      const isStaff = ['admin', 'manager', 'tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'].includes(currentUser.role);
+      if (isStaff) {
         setTimeout(() => window.location.href = '/admin.html', 1000);
       }
     } else {
@@ -668,6 +871,7 @@ function renderApplicationsSidebar() {
   if (scrollspyObserver) {
     scrollspyObserver.disconnect();
   }
+  updateTOC(); // Ascunde sidebar TOC (dreapta)
   
   chaptersList.innerHTML = `
     <h3 class="sidebar-title" style="margin-top: 0;">Tipuri Aplicații</h3>
@@ -713,6 +917,42 @@ async function loadAndRenderApplicationForm(type) {
   uploadedGangImageBase64 = ''; // resetează poza încărcată
   uploadedBulletinImageBase64 = ''; // resetează poza buletin
 
+  // Verificare aplicație existentă în curs de evaluare
+  const existingAppId = localStorage.getItem(`pending_app_${type}`);
+  if (existingAppId) {
+    try {
+      const checkRes = await fetch(`/api/applications/check-status?id=${existingAppId}`);
+      const checkData = await checkRes.json();
+      if (checkData.success && checkData.status === 'pending') {
+        let friendlyName = '';
+        if (type === 'smurd') friendlyName = 'SMURD';
+        else if (type === 'police') friendlyName = 'Poliție (PD)';
+        else if (type === 'staff') friendlyName = 'Staff Server';
+        else if (type === 'gang') friendlyName = 'Grupare Infracțională (Gang/Mafie)';
+
+        rulesContainer.innerHTML = `
+          <div class="rules-empty-state" style="padding: 4rem 2rem;">
+            <div style="font-size: 3.5rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 10px rgba(226, 27, 60, 0.3));">⏳</div>
+            <h3 style="color: var(--primary); font-family: 'Outfit', sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">Aplicație în verificare</h3>
+            <p style="color: var(--text-light); max-width: 500px; margin: 0 auto 1.5rem auto; line-height: 1.6;">
+              Ai deja o aplicație trimisă pentru secțiunea <strong>${friendlyName}</strong> care se află în curs de evaluare de către Staff-ul VIPURI.
+            </p>
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-light); padding: 1rem; border-radius: 8px; display: inline-block; max-width: 100%;">
+              <span style="font-size: 0.85rem; color: var(--text-muted);">Cod Unic Identificare:</span>
+              <code style="display: block; font-family: monospace; font-size: 1rem; color: var(--primary); font-weight: bold; margin-top: 0.25rem;">${existingAppId}</code>
+            </div>
+            <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">Vei putea trimite o nouă cerere numai după ce un Manager procesează aplicația actuală.</p>
+          </div>
+        `;
+        return;
+      } else if (checkData.success && (checkData.status === 'accepted' || checkData.status === 'rejected' || checkData.status === 'not_found')) {
+        localStorage.removeItem(`pending_app_${type}`);
+      }
+    } catch (e) {
+      console.error("Eroare la verificarea statusului aplicației:", e);
+    }
+  }
+
   try {
     const response = await fetch('/api/applications/status');
     const data = await response.json();
@@ -743,8 +983,15 @@ async function loadAndRenderApplicationForm(type) {
       return;
     }
 
-    // Randează formularul corespunzător
-    renderFormInputs(type);
+    // Preluare întrebări dinamice de pe server
+    const qResponse = await fetch(`/api/applications/questions?type=${type}`);
+    const qData = await qResponse.json();
+    if (!qData.success || !qData.questions) {
+      showToast("Eroare la obținerea întrebărilor formularului.", "error");
+      return;
+    }
+
+    renderDynamicForm(type, qData.questions);
 
   } catch (error) {
     console.error("Eroare formular:", error);
@@ -752,516 +999,184 @@ async function loadAndRenderApplicationForm(type) {
   }
 }
 
-function renderFormInputs(type) {
-  let formHtml = '';
-  let title = '';
+function renderDynamicForm(type, questions) {
+  let friendlyName = '';
+  if (type === 'smurd') friendlyName = 'Departament SMURD';
+  else if (type === 'police') friendlyName = 'Departament Poliție (PD)';
+  else if (type === 'staff') friendlyName = 'Staff Server';
+  else if (type === 'gang') friendlyName = 'Grupare Infracțională (Gang/Mafie)';
 
-  if (type === 'smurd') {
-    title = 'Formular Recrutare - Departament SMURD';
-    formHtml = `
-      <form id="appSubmitForm">
-        <div class="form-group">
-          <label class="form-label" for="smurdId">1. ID Jucător (cifre din joc)</label>
-          <input type="number" class="form-input" id="smurdId" required placeholder="Ex: 1042">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="smurdAge">2. Vârstă OOC (cifre)</label>
-          <input type="number" class="form-input" id="smurdAge" required min="1" max="99" placeholder="Vârsta ta reală">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="smurdHours">3. Ore jucate pe server (minim 10)</label>
-          <input type="number" class="form-input" id="smurdHours" required min="10" placeholder="Orele tale pe server">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="smurdReason">4. De ce doriți să vă alăturați acestui departament?</label>
-          <textarea class="form-input" id="smurdReason" rows="4" required placeholder="Scrie argumentele tale..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">5. Aveți un cazier la activ în momentul de față?</label>
-          <div class="radio-group-premium">
-            <label class="radio-tile">
-              <input type="radio" name="smurdRecord" value="DA" required>
-              <span class="radio-tile-label">DA</span>
-            </label>
-            <label class="radio-tile">
-              <input type="radio" name="smurdRecord" value="NU" required>
-              <span class="radio-tile-label">NU</span>
-            </label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">6. Sunteți conștienți de consecințele corupției?</label>
-          <div class="radio-group-premium">
-            <label class="radio-tile">
-              <input type="radio" name="smurdCorruption" value="DA" required>
-              <span class="radio-tile-label">DA</span>
-            </label>
-            <label class="radio-tile">
-              <input type="radio" name="smurdCorruption" value="NU" required>
-              <span class="radio-tile-label">NU</span>
-            </label>
-          </div>
-        </div>
-        <button type="submit" class="btn-primary" style="justify-content: center; width: 100%; margin-top: 1.5rem; padding: 0.85rem;">Trimite Aplicația SMURD</button>
-      </form>
-    `;
-  } else if (type === 'police') {
-    title = 'Formular Recrutare - Departament Poliție (PD)';
-    formHtml = `
-      <form id="appSubmitForm">
-        <!-- OOC Section -->
-        <h3 style="color: var(--primary); margin: 0 0 1.25rem 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Secțiunea Out-Of-Character (OOC)
-        </h3>
-        
-        <div class="form-group">
-          <label class="form-label" for="pdName">Nume Prenume OOC (Real)</label>
-          <input type="text" class="form-input" id="pdName" required placeholder="Numele tău complet">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pdAge">Vârstă OOC (cifre)</label>
-          <input type="number" class="form-input" id="pdAge" required min="1" placeholder="Vârsta ta reală">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pdQualities">Minim 3 calități pe care consideri că le ai și explică</label>
-          <textarea class="form-input" id="pdQualities" rows="4" required placeholder="Descrie și motivează calitățile..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pdDefects">Minim 3 defecte pe care consideri că le ai și explică</label>
-          <textarea class="form-input" id="pdDefects" rows="4" required placeholder="Descrie și motivează defectele..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pdDesc">Descrie-te în minim 50 de cuvinte</label>
-          <textarea class="form-input" id="pdDesc" rows="4" required placeholder="Minim 50 de cuvinte..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pdHours">Ore Jucate pe Server</label>
-          <input type="number" class="form-input" id="pdHours" required min="0" placeholder="Ore jucate">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pdDedicatedHours">Câte ore vei dedica zilnic facțiunii?</label>
-          <input type="number" class="form-input" id="pdDedicatedHours" required min="1" placeholder="Ex: 3 ore">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Faci Parte dintr-o organizație?</label>
-          <div class="radio-group-premium">
-            <label class="radio-tile">
-              <input type="radio" name="pdOrg" value="Da" required>
-              <span class="radio-tile-label">DA</span>
-            </label>
-            <label class="radio-tile">
-              <input type="radio" name="pdOrg" value="Nu" required>
-              <span class="radio-tile-label">NU</span>
-            </label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pdDiscord">Nume utilizator Discord</label>
-          <input type="text" class="form-input" id="pdDiscord" required placeholder="Ex: discord_user">
-        </div>
+  let formHtml = `<form id="appSubmitForm">`;
 
-        <!-- IC Section -->
-        <h3 style="color: var(--primary); margin: 2rem 0 1.25rem 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Secțiunea In-Character (IC)
-        </h3>
-        
-        <div class="form-group">
-          <label class="form-label" for="pdNameIc">Nume și prenume IC</label>
-          <input type="text" class="form-input" id="pdNameIc" required placeholder="Ex: John Doe">
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label" for="pdBulletinImage">Poza Buletin IC</label>
-          <input type="file" class="form-input" id="pdBulletinImage" accept="image/*" required style="padding-top: 0.50rem;">
-          <div id="bulletinPreviewContainer" style="margin-top: 0.75rem; display: none; text-align: center;">
-            <img id="pdBulletinPreview" src="" alt="Previzualizare Buletin" style="max-height: 150px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="pdCnpIc">CNP IC (cifre joc)</label>
-          <input type="number" class="form-input" id="pdCnpIc" required placeholder="CNP personaj">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="pdAgeIc">Vârstă IC (cifre joc)</label>
-          <input type="number" class="form-input" id="pdAgeIc" required min="1" placeholder="Vârstă personaj">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Ai citit regulamentul?</label>
-          <div class="radio-group-premium">
-            <label class="radio-tile">
-              <input type="radio" name="pdReadRules" value="DA" required>
-              <span class="radio-tile-label">DA</span>
-            </label>
-            <label class="radio-tile">
-              <input type="radio" name="pdReadRules" value="NU" required>
-              <span class="radio-tile-label">NU</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="pdStoryIc">Povestea Caracterului (IC)</label>
-          <textarea class="form-input" id="pdStoryIc" rows="5" required placeholder="Scrie povestea și trecutul personajului tău..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="pdReasonDept">De ce dorești în acest departament?</label>
-          <textarea class="form-input" id="pdReasonDept" rows="4" required placeholder="Motivează alegerea ta..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="pdGoalIc">Unde dorești să ajungi ca și polițist?</label>
-          <textarea class="form-input" id="pdGoalIc" rows="3" required placeholder="Planurile de viitor în cadrul facțiunii..."></textarea>
-        </div>
-
-        <!-- Regulament Confirm -->
-        <h3 style="color: var(--primary); margin: 2rem 0 1.25rem 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          Confirmare de Luare la Cunoștință
-        </h3>
-        <div class="form-group">
-          <label class="form-label">Confirm că am luat la cunoștință că dacă voi fi acceptat voi susține testul din Regulament Server, Regulament Poliție și codurile pentru licența Radio!</label>
-          <div class="radio-group-premium">
-            <label class="radio-tile">
-              <input type="radio" name="pdConfirm" value="DA" required>
-              <span class="radio-tile-label">DA</span>
-            </label>
-            <label class="radio-tile">
-              <input type="radio" name="pdConfirm" value="NU" required>
-              <span class="radio-tile-label">NU</span>
-            </label>
-          </div>
-        </div>
-
-        <button type="submit" class="btn-primary" style="justify-content: center; width: 100%; margin-top: 1.5rem; padding: 0.85rem;">Trimite Aplicația Poliție</button>
-      </form>
-    `;
-  } else if (type === 'staff') {
-    title = 'Formular Înscriere - Echipă Staff Vipuri Roleplay';
-    formHtml = `
-      <form id="appSubmitForm">
-        <div class="form-group">
-          <label class="form-label" for="staffEmail">Adresă de e-mail</label>
-          <input type="email" class="form-input" id="staffEmail" required placeholder="Ex: contact@email.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffNameAge">Nume + Vârstă</label>
-          <input type="text" class="form-input" id="staffNameAge" required placeholder="Ex: Andrei, 17 ani">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffHours">Ore jucate pe server (minim 100)</label>
-          <input type="number" class="form-input" id="staffHours" required min="100" placeholder="Ore jucate pe server">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffDiscord">Discord Username</label>
-          <input type="text" class="form-input" id="staffDiscord" required placeholder="Username Discord">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffId">ID Server (in-game ID)</label>
-          <input type="number" class="form-input" id="staffId" required placeholder="ID joc">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Ești conștient că dacă aplicația ta nu va fi destul de dezvoltată și de bine punctată, aceasta poate fi respinsă?</label>
-          <div class="radio-group-premium">
-            <label class="radio-tile">
-              <input type="radio" name="staffAwareness" value="DA" required>
-              <span class="radio-tile-label">DA</span>
-            </label>
-            <label class="radio-tile">
-              <input type="radio" name="staffAwareness" value="NU" required>
-              <span class="radio-tile-label">NU</span>
-            </label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffRating">Cât de bine cunoști regulamentul serverului?</label>
-          <select class="form-select" id="staffRating" required>
-            <option value="" disabled selected>Selectează o opțiune...</option>
-            <option value="1">1 (Deloc)</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10 (Foarte bine)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffReason">Ce te-a determinat să aplici în staff?</label>
-          <textarea class="form-input" id="staffReason" rows="4" required placeholder="Dezvoltă motivele..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffExp">Ai mai fost staff pe alte servere? Dacă da, ce grade ai avut?</label>
-          <textarea class="form-input" id="staffExp" rows="4" required placeholder="Descrie experiența ta anterioară..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Sunteți de acord că trebuie să lăsați prieteniile deoparte și să acționați corect în orice situație?</label>
-          <div class="radio-group-premium">
-            <label class="radio-tile">
-              <input type="radio" name="staffFairplay" value="DA" required>
-              <span class="radio-tile-label">DA</span>
-            </label>
-            <label class="radio-tile">
-              <input type="radio" name="staffFairplay" value="NU" required>
-              <span class="radio-tile-label">NU</span>
-            </label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffMerit">De ce credeți că meritați această funcție (Minim 20 cuvinte)?</label>
-          <textarea class="form-input" id="staffMerit" rows="4" required placeholder="Scrie argumentele în minim 20 de cuvinte..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffTime">Cât timp ești dispus să investești în fiecare zi? (ore)</label>
-          <input type="number" class="form-input" id="staffTime" required min="1" placeholder="Ore zilnic">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffAltercations">Ați avut altercații, discuții aprinse cu oricare dintre membrii staff-ului? (exemple)</label>
-          <textarea class="form-input" id="staffAltercations" rows="4" required placeholder="Dacă nu ai avut, scrie: Nu am avut."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffRole">Cu ce credeți că se ocupă un membru staff?</label>
-          <textarea class="form-input" id="staffRole" rows="4" required placeholder="Descrie sarcinile unui membru staff..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="staffDesc">Descrierea ta personală</label>
-          <textarea class="form-input" id="staffDesc" rows="4" required placeholder="Detalii despre tine, caracter, hobby-uri..."></textarea>
-        </div>
-        <button type="submit" class="btn-primary" style="justify-content: center; width: 100%; margin-top: 1.5rem; padding: 0.85rem;">Trimite Aplicația Staff</button>
-      </form>
-    `;
-  } else if (type === 'gang') {
-    title = 'Formular Înregistrare Grupări - Cerere Gang / Mafie';
-    formHtml = `
-      <form id="appSubmitForm">
-        <div class="form-group">
-          <label class="form-label" for="gangName">[OOC] Nume Lider (Real)</label>
-          <input type="text" class="form-input" id="gangName" required placeholder="Numele tău real">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="gangHours">[OOC] Ore pe server</label>
-          <input type="number" class="form-input" id="gangHours" required min="0" placeholder="Ore jucate">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="gangMembers">[OOC] ID-uri membrii grupării</label>
-          <textarea class="form-input" id="gangMembers" rows="3" required placeholder="Enumerați ID-urile tuturor membrilor..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="gangOrg">[IC] Nume Organizație / Mafie / Gang</label>
-          <input type="text" class="form-input" id="gangOrg" required placeholder="Numele facțiunii (ex: Grove Street)">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="gangPhone">[IC] Număr de telefon LIDER</label>
-          <input type="number" class="form-input" id="gangPhone" required placeholder="Număr de telefon in-game">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="gangStory">[IC] Povestea Organizației (Istoric & Scopuri)</label>
-          <textarea class="form-input" id="gangStory" rows="6" required placeholder="Scrie povestea organizației în detaliu..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="gangImage">Poze cu organizația (poze cu membrii/logo-uri/etc)</label>
-          <input type="file" class="form-input" id="gangImage" accept="image/*" required style="padding-top: 0.50rem;">
-          <div id="imagePreviewContainer" style="margin-top: 0.75rem; display: none; text-align: center;">
-            <img id="gangImagePreview" src="" alt="Previzualizare Logo" style="max-height: 150px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);">
-          </div>
-        </div>
-        <button type="submit" class="btn-primary" style="justify-content: center; width: 100%; margin-top: 1.5rem; padding: 0.85rem;">Trimite Cererea de Gang</button>
-      </form>
+  // Pentru Poliție, redăm titlu specific OOC ca design inițial
+  if (type === 'police') {
+    formHtml += `
+      <h3 style="color: var(--primary); margin: 0 0 1.25rem 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Secțiunea Out-Of-Character (OOC)
+      </h3>
     `;
   }
+
+  questions.forEach(q => {
+    formHtml += `
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label class="form-label" for="${q.id}" style="margin-bottom: 0.5rem; display: block; font-weight: 600;">${q.label}</label>
+    `;
+
+    if (q.type === 'text') {
+      formHtml += `<input type="text" class="form-input" id="${q.id}" ${q.required ? 'required' : ''} placeholder="${q.placeholder || ''}">`;
+    } else if (q.type === 'number') {
+      formHtml += `<input type="number" class="form-input" id="${q.id}" ${q.required ? 'required' : ''} placeholder="${q.placeholder || ''}">`;
+    } else if (q.type === 'textarea') {
+      formHtml += `<textarea class="form-input" id="${q.id}" rows="4" ${q.required ? 'required' : ''} placeholder="${q.placeholder || ''}"></textarea>`;
+    } else if (q.type === 'radio') {
+      formHtml += `<div class="radio-group-premium">`;
+      (q.options || ["DA", "NU"]).forEach(opt => {
+        formHtml += `
+          <label class="radio-tile">
+            <input type="radio" name="${q.id}" value="${opt}" ${q.required ? 'required' : ''}>
+            <span class="radio-tile-label">${opt}</span>
+          </label>
+        `;
+      });
+      formHtml += `</div>`;
+    } else if (q.type === 'file') {
+      formHtml += `
+        <div class="file-upload-wrapper">
+          <input type="file" id="${q.id}" accept="image/*" style="display: none;" ${q.required ? 'required' : ''}>
+          <button type="button" class="btn-secondary file-upload-btn" onclick="document.getElementById('${q.id}').click()" style="padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Selectează Imaginea (Max 2MB)
+          </button>
+          <div class="file-preview-name" id="previewName_${q.id}" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--accent-green); display: none; font-weight: 600;"></div>
+        </div>
+      `;
+    }
+
+    formHtml += `</div>`;
+  });
+
+  formHtml += `
+      <button type="submit" class="btn-primary" style="justify-content: center; width: 100%; margin-top: 2rem; padding: 0.9rem; font-size: 1rem; font-weight: bold; border-radius: 8px;">Trimite Aplicația</button>
+    </form>
+  `;
 
   rulesContainer.innerHTML = `
     <div class="form-container" style="padding: 2.5rem; border-radius: 16px; background: var(--bg-surface); border: 1px solid var(--border-light); box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 800px; margin: 0 auto;">
       <h2 style="color: var(--text-light); font-family: 'Outfit', sans-serif; font-size: 1.6rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        ${title}
+        ${friendlyName}
       </h2>
       ${formHtml}
     </div>
   `;
 
-  // Eveniment de upload poza buletin (daca este police)
-  if (type === 'police') {
-    const fileInput = document.getElementById('pdBulletinImage');
-    const previewContainer = document.getElementById('bulletinPreviewContainer');
-    const imagePreview = document.getElementById('pdBulletinPreview');
-
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        // Limitare dimensiune imagine (max 2MB)
-        if (file.size > 2 * 1024 * 1024) {
-          showToast("Imaginea este prea mare! Dimensiunea maximă permisă este de 2MB.", "error");
-          fileInput.value = '';
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          uploadedBulletinImageBase64 = evt.target.result;
-          imagePreview.src = uploadedBulletinImageBase64;
-          previewContainer.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+  // Adaugă file handlers dinamic pentru câmpurile file upload
+  questions.forEach(q => {
+    if (q.type === 'file') {
+      const fileInput = document.getElementById(q.id);
+      const previewName = document.getElementById(`previewName_${q.id}`);
+      if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            if (file.size > 2 * 1024 * 1024) {
+              showToast("Imaginea depășește limita de 2MB!", "error");
+              fileInput.value = '';
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              fileInput.dataset.base64 = event.target.result;
+              previewName.textContent = `Poză selectată: ${file.name}`;
+              previewName.style.display = 'block';
+              showToast("Poză încărcată!", "success");
+            };
+            reader.readAsDataURL(file);
+          }
+        });
       }
-    });
-  }
+    }
+  });
 
-  // Eveniment de upload poza (daca este gang)
-  if (type === 'gang') {
-    const fileInput = document.getElementById('gangImage');
-    const previewContainer = document.getElementById('imagePreviewContainer');
-    const imagePreview = document.getElementById('gangImagePreview');
-
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        // Limitare dimensiune imagine (max 2MB)
-        if (file.size > 2 * 1024 * 1024) {
-          showToast("Imaginea este prea mare! Dimensiunea maximă permisă este de 2MB.", "error");
-          fileInput.value = '';
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          uploadedGangImageBase64 = evt.target.result;
-          imagePreview.src = uploadedGangImageBase64;
-          previewContainer.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-  }
-
-  // Interceptează submit formular
-  const formEl = document.getElementById('appSubmitForm');
-  formEl.addEventListener('submit', async (e) => {
+  // Listener submit dinamic
+  const submitForm = document.getElementById('appSubmitForm');
+  submitForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    // Extragere date formular
-    let formData = {};
 
-    if (type === 'smurd') {
-      formData = {
-        idJoc: document.getElementById('smurdId').value,
-        varsta: document.getElementById('smurdAge').value,
-        oreJucate: document.getElementById('smurdHours').value,
-        motiv: document.getElementById('smurdReason').value,
-        cazier: formEl.querySelector('input[name="smurdRecord"]:checked').value,
-        consecinteCoruptie: formEl.querySelector('input[name="smurdCorruption"]:checked').value
-      };
-    } else if (type === 'police') {
-      const confirmVal = formEl.querySelector('input[name="pdConfirm"]:checked').value;
-      if (confirmVal !== 'DA') {
-        showToast("Trebuie să selectezi DA la confirmarea regulamentelor pentru a trimite aplicația.", "error");
-        return;
+    const formData = {};
+    let allOk = true;
+
+    // Colectează valorile în funcție de tipul întrebării
+    for (const q of questions) {
+      if (q.type === 'radio') {
+        const checkedRadio = submitForm.querySelector(`input[name="${q.id}"]:checked`);
+        formData[q.id] = checkedRadio ? checkedRadio.value : '';
+      } else if (q.type === 'file') {
+        const fileInput = document.getElementById(q.id);
+        const base64Data = fileInput ? (fileInput.dataset.base64 || '') : '';
+        if (q.required && !base64Data) {
+          showToast(`Te rugăm să încarci fișierul solicitat la întrebarea: ${q.label}`, "error");
+          allOk = false;
+          break;
+        }
+        formData[q.id] = base64Data;
+      } else {
+        const inputEl = document.getElementById(q.id);
+        formData[q.id] = inputEl ? inputEl.value : '';
       }
-
-      if (!uploadedBulletinImageBase64) {
-        showToast("Te rugăm să încarci poza cu Buletinul tău IC.", "error");
-        return;
-      }
-
-      formData = {
-        numeOoc: document.getElementById('pdName').value,
-        varstaOoc: document.getElementById('pdAge').value,
-        calitati: document.getElementById('pdQualities').value,
-        defecte: document.getElementById('pdDefects').value,
-        descriere: document.getElementById('pdDesc').value,
-        oreJucate: document.getElementById('pdHours').value,
-        oreZilnice: document.getElementById('pdDedicatedHours').value,
-        organizatie: formEl.querySelector('input[name="pdOrg"]:checked').value,
-        confirmare: confirmVal,
-        discord: document.getElementById('pdDiscord').value,
-        // IC fields
-        numeIc: document.getElementById('pdNameIc').value,
-        pozaBuletinIc: uploadedBulletinImageBase64,
-        cnpIc: document.getElementById('pdCnpIc').value,
-        varstaIc: document.getElementById('pdAgeIc').value,
-        cititRegulament: formEl.querySelector('input[name="pdReadRules"]:checked').value,
-        povesteCaracter: document.getElementById('pdStoryIc').value,
-        motivDepartament: document.getElementById('pdReasonDept').value,
-        scopPolitist: document.getElementById('pdGoalIc').value
-      };
-    } else if (type === 'staff') {
-      formData = {
-        email: document.getElementById('staffEmail').value,
-        numeVarsta: document.getElementById('staffNameAge').value,
-        oreJucate: document.getElementById('staffHours').value,
-        discord: document.getElementById('staffDiscord').value,
-        idServer: document.getElementById('staffId').value,
-        cunoscutRespingere: formEl.querySelector('input[name="staffAwareness"]:checked').value,
-        ratingRegulament: document.getElementById('staffRating').value,
-        motivAplicare: document.getElementById('staffReason').value,
-        experientaStaff: document.getElementById('staffExp').value,
-        fairplayPrieteni: formEl.querySelector('input[name="staffFairplay"]:checked').value,
-        deCeMerit: document.getElementById('staffMerit').value,
-        timpZilnic: document.getElementById('staffTime').value,
-        altercatiiStaff: document.getElementById('staffAltercations').value,
-        rolStaff: document.getElementById('staffRole').value,
-        descrierePersonala: document.getElementById('staffDesc').value
-      };
-    } else if (type === 'gang') {
-      if (!uploadedGangImageBase64) {
-        showToast("Te rugăm să încarci o poză pentru organizație.", "error");
-        return;
-      }
-
-      formData = {
-        numeOoc: document.getElementById('gangName').value,
-        oreServer: document.getElementById('gangHours').value,
-        idMembrii: document.getElementById('gangMembers').value,
-        numeOrganizatie: document.getElementById('gangOrg').value,
-        telefonLider: document.getElementById('gangPhone').value,
-        povesteOrganizatie: document.getElementById('gangStory').value,
-        pozeOrganizatie: uploadedGangImageBase64
-      };
     }
 
-    // Trimitere către server
-    try {
-      const submitBtn = formEl.querySelector('button[type="submit"]');
+    if (allOk) {
+      submitDynamicApplication(type, formData);
+    }
+  });
+}
+
+async function submitDynamicApplication(type, formData) {
+  try {
+    const submitBtn = document.querySelector('#appSubmitForm button[type="submit"]');
+    if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Se trimite...';
+    }
 
-      const response = await fetch('/api/applications/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, formData })
-      });
+    const response = await fetch('/api/applications/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, formData })
+    });
 
-      const data = await response.json();
-      if (data.success) {
-        showToast("Aplicația ta a fost înregistrată cu succes!", "success");
-        // Randează ecranul de succes
-        rulesContainer.innerHTML = `
-          <div class="rules-empty-state" style="padding: 4rem 2rem;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-            <h2 style="color: var(--text-light); font-family: 'Outfit', sans-serif;">Aplicație Trimisă!</h2>
-            <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem auto;">
-              Formularul tău a fost înregistrat. Un membru staff din echipa corespunzătoare o va examina în cel mai scurt timp.
-            </p>
-            <button class="btn-primary" onclick="switchCategory('general')" style="margin: 0 auto;">Înapoi la Regulamente</button>
-          </div>
-        `;
-      } else {
-        showToast(data.message, "error");
+    const data = await response.json();
+    if (data.success) {
+      if (data.application && data.application.id) {
+        localStorage.setItem(`pending_app_${type}`, data.application.id);
+      }
+      showToast("Aplicația ta a fost înregistrată cu succes!", "success");
+      rulesContainer.innerHTML = `
+        <div class="rules-empty-state" style="padding: 4rem 2rem;">
+          <div style="font-size: 3.5rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 10px rgba(0, 230, 118, 0.25));">✅</div>
+          <h2 style="color: var(--text-light); font-family: 'Outfit', sans-serif; font-size: 1.8rem; margin-bottom: 1rem;">Aplicație Trimisă!</h2>
+          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem auto; line-height: 1.6;">
+            Formularul tău a fost înregistrat. Un membru staff din echipa corespunzătoare o va examina în cel mai scurt timp.
+          </p>
+          <button class="btn-primary" onclick="switchCategory('general')" style="margin: 0 auto;">Înapoi la Regulamente</button>
+        </div>
+      `;
+    } else {
+      showToast(data.message, "error");
+      if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Trimite din nou';
       }
-    } catch (err) {
-      showToast("Eroare la trimiterea formularului.", "error");
+    }
+  } catch (err) {
+    showToast("Eroare la trimiterea formularului.", "error");
+    const submitBtn = document.querySelector('#appSubmitForm button[type="submit"]');
+    if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Trimite din nou';
     }
-  });
+  }
 }

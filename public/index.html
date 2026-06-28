@@ -48,8 +48,8 @@
 
   <!-- Hero & Search Section -->
   <section class="hero">
-    <h1 class="hero-title-glowing">Portalul Oficial de <span>Regulamente</span></h1>
-    <p class="hero-subtitle">Navighează prin codul penal, ghidurile de fracțiuni și regulile generale ale serverului nostru.</p>
+    <h1 class="hero-title-glowing">Regulament Oficial <span>VIPURI Roleplay</span></h1>
+    <p class="hero-subtitle">Toate regulile comunității într-un singur loc. Căutare rapidă și actualizări în timp real.</p>
     
     <div class="search-wrapper">
       <div class="search-input-container">
@@ -84,6 +84,14 @@
         </div>
       </div>
     </section>
+
+    <!-- Right Sidebar (TOC) -->
+    <aside class="toc-sidebar" id="tocSidebar">
+      <h3 class="toc-title">Pe pagina asta</h3>
+      <ul class="toc-list" id="tocList">
+        <!-- populated dynamically -->
+      </ul>
+    </aside>
   </main>
 
   <!-- Auth Modal -->
@@ -105,7 +113,11 @@
           <label class="form-label" for="loginPassword">Parolă</label>
           <input type="password" class="form-input" id="loginPassword" placeholder="Parola ta" required>
         </div>
-        <button type="submit" class="btn-primary" style="justify-content: center; margin-top: 0.5rem;">Conectare</button>
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; cursor: pointer;">
+          <input type="checkbox" id="loginRememberMe" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
+          <label for="loginRememberMe" style="color: var(--text-light); font-size: 0.85rem; cursor: pointer; user-select: none;">Ține-mă logat (7 zile)</label>
+        </div>
+        <button type="submit" class="btn-primary" style="justify-content: center; margin-top: 1rem;">Conectare</button>
       </form>
 
       <!-- Register Form -->

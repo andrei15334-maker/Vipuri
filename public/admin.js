@@ -114,13 +114,38 @@ async function checkAuthAndInit() {
     else if (currentUser.role === 'manager-mafii') roleText = 'Manager Mafii';
     roleBadge.textContent = roleText;
     
-    // Afișare tab Logs pentru tot staff-ul
+    // Afișare tab-uri vizibile pentru tot staff-ul
     logsTab.style.display = 'inline-block';
+    
+    const questionsTabBtn = document.getElementById('questionsTab');
+    if (questionsTabBtn) {
+      questionsTabBtn.style.display = 'inline-block';
+    }
     
     // Configurare vizibilitate taburi bazat pe rol
     const editorTabBtn = document.querySelector('[data-target="editorPanel"]');
     const isTester = ['tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'].includes(currentUser.role);
     
+    // Restricționare selector întrebări pentru testeri
+    const questionFormSelect = document.getElementById('questionFormSelect');
+    if (questionFormSelect) {
+      if (currentUser.role === 'tester-pd') {
+        questionFormSelect.value = 'police';
+        questionFormSelect.disabled = true;
+      } else if (currentUser.role === 'tester-smurd') {
+        questionFormSelect.value = 'smurd';
+        questionFormSelect.disabled = true;
+      } else if (currentUser.role === 'tester-staff') {
+        questionFormSelect.value = 'staff';
+        questionFormSelect.disabled = true;
+      } else if (currentUser.role === 'manager-mafii') {
+        questionFormSelect.value = 'gang';
+        questionFormSelect.disabled = true;
+      } else {
+        questionFormSelect.disabled = false;
+      }
+    }
+
     if (isTester) {
       // Ascunde editorul pentru testeri
       if (editorTabBtn) editorTabBtn.style.display = 'none';
@@ -142,8 +167,9 @@ async function checkAuthAndInit() {
       populateChapters();
     }
 
-    // Afișare tab Manager dacă este cazul
-    if (currentUser.role === 'manager') {
+    // Afișare tab Manager dacă este manager staff (manager sau admin)
+    const isManagerStaff = ['manager', 'admin'].includes(currentUser.role);
+    if (isManagerStaff) {
       managerTab.style.display = 'inline-block';
       loadPendingUsers();
       loadActiveStaff();
@@ -202,6 +228,8 @@ function setupEventListeners() {
       loadLogs();
     } else if (target === 'applicationsPanel') {
       loadApplicationsPanel();
+    } else if (target === 'questionsPanel') {
+      loadQuestionsEditor();
     }
   });
 
@@ -265,6 +293,28 @@ function setupEventListeners() {
       `;
     }
   });
+
+  // Gestiune Întrebări Event Listeners
+  const questionFormSelect = document.getElementById('questionFormSelect');
+  if (questionFormSelect) {
+    questionFormSelect.addEventListener('change', () => {
+      loadQuestionsEditor();
+    });
+  }
+
+  const addQuestionBtn = document.getElementById('addQuestionBtn');
+  if (addQuestionBtn) {
+    addQuestionBtn.addEventListener('click', () => {
+      addNewQuestionRow();
+    });
+  }
+
+  const saveQuestionsBtn = document.getElementById('saveQuestionsBtn');
+  if (saveQuestionsBtn) {
+    saveQuestionsBtn.addEventListener('click', () => {
+      saveQuestions();
+    });
+  }
 
   // Setup pentru modalul de detalii aplicație și butoane de toggle
   setupApplicationsTabEventListeners();
@@ -862,7 +912,7 @@ function viewApplicationDetails(appId) {
   if (!app) return;
 
   const type = app.type;
-  const formData = app.formData;
+  const formData = app.formData || {};
   
   let friendlyType = '';
   if (type === 'smurd') friendlyType = 'SMURD';
@@ -871,87 +921,14 @@ function viewApplicationDetails(appId) {
   else if (type === 'gang') friendlyType = 'Gang/Mafie';
 
   detailAppTitle.textContent = `Aplicație ${friendlyType} - Detalii Completate`;
-
-  let detailsHtml = '<div style="display: flex; flex-direction: column; gap: 1rem;">';
-
-  if (type === 'smurd') {
-    detailsHtml += `
-      <p><strong>1. ID Jucător:</strong> ${formData.idJoc}</p>
-      <p><strong>2. Vârstă:</strong> ${formData.varsta} ani</p>
-      <p><strong>3. Ore jucate:</strong> ${formData.oreJucate}</p>
-      <p><strong>4. De ce doriți să vă alăturați:</strong><br><span style="color: var(--text-light);">${formData.motiv}</span></p>
-      <p><strong>5. Cazier la activ:</strong> ${formData.cazier}</p>
-      <p><strong>6. Conștient de consecințe corupție:</strong> ${formData.consecinteCoruptie}</p>
-    `;
-  } else if (type === 'police') {
-    detailsHtml += `
-      <h3 style="color: var(--primary); font-size: 0.95rem; margin-top: 0.5rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.25rem;">Date Out-Of-Character (OOC)</h3>
-      <p><strong>Nume Prenume OOC:</strong> ${formData.numeOoc}</p>
-      <p><strong>Vârstă OOC:</strong> ${formData.varstaOoc} ani</p>
-      <p><strong>Calități:</strong><br><span style="color: var(--text-light);">${formData.calitati}</span></p>
-      <p><strong>Defecte:</strong><br><span style="color: var(--text-light);">${formData.defecte}</span></p>
-      <p><strong>Descriere personală:</strong><br><span style="color: var(--text-light);">${formData.descriere}</span></p>
-      <p><strong>Ore jucate:</strong> ${formData.oreJucate}</p>
-      <p><strong>Ore dedicate zilnic:</strong> ${formData.oreZilnice}</p>
-      <p><strong>Membru organizație:</strong> ${formData.organizatie}</p>
-      <p><strong>Discord Username:</strong> ${formData.discord}</p>
-      <p><strong>Confirmare regulament:</strong> ${formData.confirmare}</p>
-
-      <h3 style="color: var(--primary); font-size: 0.95rem; margin-top: 1.5rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.25rem;">Date In-Character (IC)</h3>
-      <p><strong>Nume Prenume IC:</strong> ${formData.numeIc || 'Nespecificat'}</p>
-      <p><strong>CNP IC:</strong> ${formData.cnpIc || 'Nespecificat'}</p>
-      <p><strong>Vârstă IC:</strong> ${formData.varstaIc || 'Nespecificat'} ani</p>
-      <p><strong>Ai citit regulamentul?</strong> ${formData.cititRegulament || 'Nespecificat'}</p>
-      <p><strong>Povestea Caracterului:</strong><br><span style="color: var(--text-light);">${formData.povesteCaracter || 'Nespecificat'}</span></p>
-      <p><strong>De ce dorește în departament:</strong><br><span style="color: var(--text-light);">${formData.motivDepartament || 'Nespecificat'}</span></p>
-      <p><strong>Unde dorește să ajungă:</strong><br><span style="color: var(--text-light);">${formData.scopPolitist || 'Nespecificat'}</span></p>
-      <p><strong>Poza Buletin IC:</strong></p>
-      <div style="text-align: center; margin-top: 0.5rem;">
-        ${formData.pozaBuletinIc ? `<img src="${formData.pozaBuletinIc}" style="max-width: 100%; max-height: 220px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);"/>` : '<span style="font-style:italic; color:var(--text-dark);">Fără imagine buletin.</span>'}
-      </div>
-    `;
-  } else if (type === 'staff') {
-    detailsHtml += `
-      <p><strong>Email:</strong> ${formData.email}</p>
-      <p><strong>Nume + Vârstă:</strong> ${formData.numeVarsta}</p>
-      <p><strong>Ore jucate:</strong> ${formData.oreJucate}</p>
-      <p><strong>Discord Username:</strong> ${formData.discord}</p>
-      <p><strong>ID Server:</strong> ${formData.idServer}</p>
-      <p><strong>Conștient de posibila respingere:</strong> ${formData.cunoscutRespingere}</p>
-      <p><strong>Rating Regulament (1-10):</strong> ${formData.ratingRegulament}</p>
-      <p><strong>Motiv Aplicare:</strong><br><span style="color: var(--text-light);">${formData.motivAplicare}</span></p>
-      <p><strong>Experiență Staff anterioară:</strong><br><span style="color: var(--text-light);">${formData.experientaStaff}</span></p>
-      <p><strong>Acord fairplay:</strong> ${formData.fairplayPrieteni}</p>
-      <p><strong>De ce merită funcția:</strong><br><span style="color: var(--text-light);">${formData.deCeMerit}</span></p>
-      <p><strong>Timp alocat zilnic:</strong> ${formData.timpZilnic} ore</p>
-      <p><strong>Altercații Staff:</strong><br><span style="color: var(--text-light);">${formData.altercatiiStaff}</span></p>
-      <p><strong>Cu ce se ocupă staff-ul:</strong><br><span style="color: var(--text-light);">${formData.rolStaff}</span></p>
-      <p><strong>Descriere personală:</strong><br><span style="color: var(--text-light);">${formData.descrierePersonala}</span></p>
-    `;
-  } else if (type === 'gang') {
-    detailsHtml += `
-      <p><strong>[OOC] Nume Lider:</strong> ${formData.numeOoc}</p>
-      <p><strong>[OOC] Ore server:</strong> ${formData.oreServer}</p>
-      <p><strong>[OOC] ID-uri membri:</strong> ${formData.idMembrii}</p>
-      <p><strong>[IC] Nume Organizație:</strong> ${formData.numeOrganizatie}</p>
-      <p><strong>[IC] Telefon Lider:</strong> ${formData.telefonLider}</p>
-      <p><strong>[IC] Poveste Organizație:</strong><br><span style="color: var(--text-light);">${formData.povesteOrganizatie}</span></p>
-      <p><strong>Logo / Poze Organizație:</strong></p>
-      <div style="text-align: center; margin-top: 1rem;">
-        <img src="${formData.pozeOrganizatie}" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);">
-      </div>
-    `;
-  }
-
-  detailsHtml += '</div>';
-  detailAppContent.innerHTML = detailsHtml;
+  detailAppContent.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Se încarcă detaliile aplicației...</div>';
 
   // Verificare permisiuni procesare aplicatie
   const isPending = app.status === 'pending';
-  const hasProcessingAccess = canProcessAppType(currentUser.role, type) && (currentUser.role !== 'admin');
+  const hasProcessingAccess = canProcessAppType(currentUser.role, type);
 
   detailAppActions.innerHTML = '';
-  if (isPending && (hasProcessingAccess || currentUser.role === 'manager')) {
+  if (isPending && hasProcessingAccess) {
     detailAppActions.innerHTML = `
       <button class="action-badge-btn delete" id="btnRejectApp" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">Respinge Aplicația</button>
       <button class="action-badge-btn approve" id="btnAcceptApp" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">Acceptă Aplicația</button>
@@ -981,6 +958,55 @@ function viewApplicationDetails(appId) {
   }
 
   appDetailModal.classList.add('active');
+
+  // Preia întrebările în timp real de pe server
+  fetch(`/api/applications/questions?type=${type}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.questions) {
+        const questions = data.questions;
+        let detailsHtml = '<div style="display: flex; flex-direction: column; gap: 1.25rem;">';
+
+        questions.forEach((q) => {
+          const answerVal = formData[q.id];
+          const displayVal = answerVal !== undefined && answerVal !== '' ? answerVal : '<span style="font-style: italic; color: var(--text-dark);">Fără răspuns</span>';
+
+          if (q.type === 'file') {
+            detailsHtml += `
+              <div class="detail-field">
+                <strong style="color: var(--primary); display: block; margin-bottom: 0.5rem;">${q.label}</strong>
+                <div style="text-align: center; margin-top: 0.5rem;">
+                  ${answerVal ? `<img src="${answerVal}" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);"/>` : '<span style="font-style:italic; color:var(--text-dark);">Fără imagine.</span>'}
+                </div>
+              </div>
+            `;
+          } else if (q.type === 'textarea') {
+            detailsHtml += `
+              <div class="detail-field">
+                <strong style="color: var(--primary); display: block; margin-bottom: 0.25rem;">${q.label}</strong>
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-light); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-light); line-height: 1.5; white-space: pre-wrap;">${displayVal}</div>
+              </div>
+            `;
+          } else {
+            detailsHtml += `
+              <div class="detail-field">
+                <strong style="color: var(--primary);">${q.label}:</strong>
+                <span style="color: var(--text-light); margin-left: 0.5rem;">${displayVal}</span>
+              </div>
+            `;
+          }
+        });
+
+        detailsHtml += '</div>';
+        detailAppContent.innerHTML = detailsHtml;
+      } else {
+        detailAppContent.innerHTML = '<div style="color: var(--primary); padding: 1rem; text-align: center;">Eroare la încărcarea structurii întrebărilor.</div>';
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      detailAppContent.innerHTML = '<div style="color: var(--primary); padding: 1rem; text-align: center;">Eroare de rețea la încărcarea structurii.</div>';
+    });
 }
 
 async function processApp(appId, status, reason = '') {
@@ -1067,10 +1093,198 @@ function renderApplicationLogsTable(logs) {
 }
 
 function canProcessAppType(userRole, appType) {
-  if (userRole === 'manager') return true;
+  if (userRole === 'manager' || userRole === 'admin') return true;
   if (userRole === 'tester-pd' && appType === 'police') return true;
   if (userRole === 'tester-smurd' && appType === 'smurd') return true;
   if (userRole === 'tester-staff' && appType === 'staff') return true;
   if (userRole === 'manager-mafii' && appType === 'gang') return true;
   return false;
+}
+
+// ==========================================
+// SECTIUNE GESTIUNE ÎNTREBĂRI FORMULARE
+// ==========================================
+let currentQuestionsList = [];
+
+async function loadQuestionsEditor() {
+  const type = document.getElementById('questionFormSelect').value;
+  const container = document.getElementById('questionsListContainer');
+  container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Se încarcă întrebările...</div>';
+
+  try {
+    const response = await fetch(`/api/applications/questions?type=${type}`);
+    const data = await response.json();
+    
+    if (data.success && data.questions) {
+      currentQuestionsList = data.questions;
+      renderQuestionsList();
+    } else {
+      showToast(data.message || "Eroare la încărcarea întrebărilor.", "error");
+    }
+  } catch (error) {
+    showToast("Eroare de rețea la încărcarea întrebărilor.", "error");
+  }
+}
+
+function renderQuestionsList() {
+  const container = document.getElementById('questionsListContainer');
+  container.innerHTML = '';
+
+  if (currentQuestionsList.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Nicio întrebare definită. Adaugă una folosind butonul de mai jos.</div>';
+    return;
+  }
+
+  currentQuestionsList.forEach((q, index) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.dataset.index = index;
+
+    // Generăm elementul de opțiuni dacă e tip radio
+    let optionsHtml = '';
+    if (q.type === 'radio') {
+      const optsStr = (q.options || []).join(', ');
+      optionsHtml = `
+        <div class="form-group" style="grid-column: span 3; margin-top: 0.5rem;">
+          <label class="form-label" style="font-size: 0.8rem;">Opțiuni Radio (separate prin virgulă)</label>
+          <input type="text" class="form-input q-options" value="${optsStr}" placeholder="Ex: DA, NU, POATE">
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="question-card-header">
+        <span class="question-index-badge">Întrebarea #${index + 1}</span>
+        <div class="question-card-actions">
+          <button class="action-badge-btn" onclick="moveQuestion(${index}, -1)" ${index === 0 ? 'disabled' : ''} style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">▲ Sus</button>
+          <button class="action-badge-btn" onclick="moveQuestion(${index}, 1)" ${index === currentQuestionsList.length - 1 ? 'disabled' : ''} style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">▼ Jos</button>
+          <button class="action-badge-btn reject" onclick="deleteQuestion(${index})" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">❌ Șterge</button>
+        </div>
+      </div>
+      <div class="question-card-body">
+        <div class="form-group">
+          <label class="form-label" style="font-size: 0.8rem;">Text Întrebare (Label)</label>
+          <input type="text" class="form-input q-label" value="${q.label || ''}" required placeholder="Ex: Câți ani ai?">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size: 0.8rem;">Tip Câmp</label>
+          <select class="form-select q-type" onchange="onQuestionTypeChange(${index}, this.value)" style="padding: 0.45rem;">
+            <option value="text" ${q.type === 'text' ? 'selected' : ''}>Text Scurt</option>
+            <option value="number" ${q.type === 'number' ? 'selected' : ''}>Număr (Cifre)</option>
+            <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>Text Lung</option>
+            <option value="radio" ${q.type === 'radio' ? 'selected' : ''}>Butoane Radio (Alegere)</option>
+            <option value="file" ${q.type === 'file' ? 'selected' : ''}>Încărcare Poză / Fișier</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size: 0.8rem;">Placeholder / Sugestie</label>
+          <input type="text" class="form-input q-placeholder" value="${q.placeholder || ''}" placeholder="Ex: Scrie vârsta reală">
+        </div>
+        ${optionsHtml}
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+function onQuestionTypeChange(index, newType) {
+  syncQuestionsStateFromDOM();
+  currentQuestionsList[index].type = newType;
+  if (newType === 'radio' && (!currentQuestionsList[index].options || currentQuestionsList[index].options.length === 0)) {
+    currentQuestionsList[index].options = ["DA", "NU"];
+  }
+  renderQuestionsList();
+}
+
+function addNewQuestionRow() {
+  syncQuestionsStateFromDOM();
+  const newId = `q_dyn_${Date.now()}`;
+  currentQuestionsList.push({
+    id: newId,
+    type: 'text',
+    label: 'Întrebare nouă',
+    required: true,
+    placeholder: ''
+  });
+  renderQuestionsList();
+  showToast("Întrebare adăugată la sfârșitul listei.", "success");
+}
+
+function deleteQuestion(index) {
+  syncQuestionsStateFromDOM();
+  currentQuestionsList.splice(index, 1);
+  renderQuestionsList();
+  showToast("Întrebare ștearsă.", "info");
+}
+
+function moveQuestion(index, direction) {
+  syncQuestionsStateFromDOM();
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= currentQuestionsList.length) return;
+
+  const temp = currentQuestionsList[index];
+  currentQuestionsList[index] = currentQuestionsList[targetIndex];
+  currentQuestionsList[targetIndex] = temp;
+
+  renderQuestionsList();
+}
+
+function syncQuestionsStateFromDOM() {
+  const cards = document.querySelectorAll('#questionsListContainer .question-card');
+  cards.forEach(card => {
+    const idx = parseInt(card.dataset.index, 10);
+    if (isNaN(idx) || !currentQuestionsList[idx]) return;
+
+    const labelInput = card.querySelector('.q-label');
+    const placeholderInput = card.querySelector('.q-placeholder');
+    const typeSelect = card.querySelector('.q-type');
+
+    if (labelInput) currentQuestionsList[idx].label = labelInput.value;
+    if (placeholderInput) currentQuestionsList[idx].placeholder = placeholderInput.value;
+    if (typeSelect) currentQuestionsList[idx].type = typeSelect.value;
+
+    if (currentQuestionsList[idx].type === 'radio') {
+      const optionsInput = card.querySelector('.q-options');
+      if (optionsInput) {
+        currentQuestionsList[idx].options = optionsInput.value
+          .split(',')
+          .map(opt => opt.trim())
+          .filter(opt => opt.length > 0);
+      }
+    }
+  });
+}
+
+async function saveQuestions() {
+  syncQuestionsStateFromDOM();
+  const type = document.getElementById('questionFormSelect').value;
+  const saveBtn = document.getElementById('saveQuestionsBtn');
+
+  try {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Se salvează...';
+
+    const response = await fetch('/api/admin/questions/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type,
+        questions: currentQuestionsList
+      })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Toate întrebările au fost salvate cu succes!", "success");
+      loadQuestionsEditor();
+    } else {
+      showToast(data.message || "Eroare la salvarea întrebărilor.", "error");
+    }
+  } catch (err) {
+    showToast("Eroare de rețea la salvarea întrebărilor.", "error");
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Salvează Toate Întrebările';
+  }
 }
