@@ -438,6 +438,16 @@ async function loadPendingUsers() {
   }
 }
 
+function getFriendlyRoleName(role) {
+  if (role === 'manager') return 'Manager Staff';
+  if (role === 'admin') return 'Admin';
+  if (role === 'tester-pd') return 'Tester PD';
+  if (role === 'tester-smurd') return 'Tester SMURD';
+  if (role === 'tester-staff') return 'Tester Staff';
+  if (role === 'manager-mafii') return 'Manager Mafii';
+  return role;
+}
+
 function renderPendingUsers(users) {
   pendingCountBadge.textContent = users.length;
   if (users.length === 0) {
@@ -464,7 +474,7 @@ function renderPendingUsers(users) {
       <td><strong>${user.username}</strong></td>
       <td>${user.fullName}</td>
       <td><code>${user.discordId}</code></td>
-      <td><span style="color: ${user.role === 'manager' ? 'var(--primary)' : 'var(--accent-blue)'}; font-weight: 700; text-transform: uppercase; font-size: 0.8rem;">${user.role}</span></td>
+      <td><span style="color: ${user.role === 'manager' ? 'var(--primary)' : 'var(--accent-blue)'}; font-weight: 700; text-transform: uppercase; font-size: 0.8rem;">${getFriendlyRoleName(user.role)}</span></td>
       <td>${dateStr}</td>
       <td style="text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
         <button class="action-badge-btn approve" data-user="${user.username}">Aprobă</button>
@@ -567,9 +577,13 @@ function renderActiveStaff(users) {
       <td>${user.fullName}</td>
       <td><code>${user.discordId}</code></td>
       <td>
-        <select class="form-select role-select" data-user="${user.username}" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; width: 120px;" ${isSelf ? 'disabled' : ''}>
+        <select class="form-select role-select" data-user="${user.username}" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; width: 140px;" ${isSelf ? 'disabled' : ''}>
           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
           <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Manager</option>
+          <option value="tester-pd" ${user.role === 'tester-pd' ? 'selected' : ''}>Tester PD</option>
+          <option value="tester-smurd" ${user.role === 'tester-smurd' ? 'selected' : ''}>Tester SMURD</option>
+          <option value="tester-staff" ${user.role === 'tester-staff' ? 'selected' : ''}>Tester Staff</option>
+          <option value="manager-mafii" ${user.role === 'manager-mafii' ? 'selected' : ''}>Manager Mafii</option>
         </select>
       </td>
       <td>${dateStr}</td>
