@@ -1,25 +1,44 @@
-// VIPURI ROLEPLAY - Front-End Logic pentru Portalul Public
-let allRulesData = null;
-let currentCategory = 'general';
+// VIPURI ROLEPLAY - Front-End Logic pentru Panoul Administrativ Staff
+let rulesData = null;
 let currentUser = null;
-let scrollspyObserver = null;
+let currentSelectedRule = {
+  category: '',
+  chapterId: '',
+  subchapterId: ''
+};
 
 // Elemente DOM
-const categoriesNav = document.getElementById('categoriesNav');
-const chaptersList = document.getElementById('chaptersList');
-const rulesContainer = document.getElementById('rulesContainer');
-const headerActions = document.getElementById('headerActions');
-const openAuthBtn = document.getElementById('openAuthBtn');
-const authModal = document.getElementById('authModal');
-const closeAuthBtn = document.getElementById('closeAuthBtn');
-const modalTabs = document.querySelector('.modal-tabs');
-const loginForm = document.getElementById('loginForm');
-const registerForm = document.getElementById('registerForm');
-const rulesSearch = document.getElementById('rulesSearch');
-const searchResults = document.getElementById('searchResults');
+const roleBadge = document.getElementById('roleBadge');
+const logoutBtn = document.getElementById('logoutBtn');
+const adminTabs = document.getElementById('adminTabs');
+const managerTab = document.getElementById('managerTab');
+const logsTab = document.getElementById('logsTab');
+const logsTableBody = document.getElementById('logsTableBody');
 const toastContainer = document.getElementById('toastContainer');
-const tocSidebar = document.getElementById('tocSidebar');
-const tocList = document.getElementById('tocList');
+
+// Elemente Gestiune Aplicații
+const applicationsTab = document.getElementById('applicationsTab');
+const applicationsTableBody = document.getElementById('applicationsTableBody');
+const appLogsTableBody = document.getElementById('appLogsTableBody');
+const appDetailModal = document.getElementById('appDetailModal');
+const closeAppDetailBtn = document.getElementById('closeAppDetailBtn');
+const detailAppTitle = document.getElementById('detailAppTitle');
+const detailAppContent = document.getElementById('detailAppContent');
+const detailAppActions = document.getElementById('detailAppActions');
+
+// Editor DOM
+const editCategorySelect = document.getElementById('editCategorySelect');
+const editChapterSelect = document.getElementById('editChapterSelect');
+const editSubchapterSelect = document.getElementById('editSubchapterSelect');
+const editorTitleDisplay = document.getElementById('editorTitleDisplay');
+const saveRuleBtn = document.getElementById('saveRuleBtn');
+const ruleTextEditor = document.getElementById('ruleTextEditor');
+const editorLivePreview = document.getElementById('editorLivePreview');
+
+// Manager DOM
+const pendingCountBadge = document.getElementById('pendingCountBadge');
+const pendingUsersTableBody = document.getElementById('pendingUsersTableBody');
+const activeUsersTableBody = document.getElementById('activeUsersTableBody');
 
 // ==========================================
 // TOAST NOTIFICATIONS
@@ -28,7 +47,6 @@ function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   
-  // Iconițe specifice
   let icon = '';
   if (type === 'success') {
     icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -46,13 +64,11 @@ function showToast(message, type = 'info') {
 
   toastContainer.appendChild(toast);
 
-  // Auto-închidere după 5 secunde
   const timeoutId = setTimeout(() => {
     toast.style.animation = 'slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) reverse forwards';
     setTimeout(() => toast.remove(), 300);
   }, 5000);
 
-  // Buton închidere manuală
   toast.querySelector('.toast-close').addEventListener('click', () => {
     clearTimeout(timeoutId);
     toast.remove();
@@ -60,367 +76,340 @@ function showToast(message, type = 'info') {
 }
 
 // ==========================================
-// INITIALIZARE & SESIUNE
+// INITIALIZARE & VERIFICARE SESIUNE
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  checkAuthStatus();
-  loadRules();
-
-  // Scrollspy & Scroll event pe header
-  window.addEventListener('scroll', () => {
-    const header = document.getElementById('mainHeader');
-    if (window.scrollY > 30) {
-      header.classList.add('scrolled');
-    } else {
-      header.classList.remove('scrolled');
-    }
-  });
-
-  // Shortcut căutare (Ctrl+K sau Cmd+K)
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      rulesSearch.focus();
-    }
-  });
+  checkAuthAndInit();
+  setupEventListeners();
 });
 
-async function checkAuthStatus() {
+async function checkAuthAndInit() {
   try {
     const response = await fetch('/api/auth/status');
     const data = await response.json();
-    
-    if (data.authenticated) {
-      currentUser = data.user;
-      renderUserWidget();
-    } else {
-      currentUser = null;
-      renderLoginButton();
+
+    if (!data.authenticated) {
+      showToast("Sesiune expirată sau neautorizată. Redirecționare...", "error");
+      setTimeout(() => window.location.href = '/', 1500);
+      return;
     }
+
+    currentUser = data.user;
+    
+    // Verificare rol
+    const validRoles = ['admin', 'manager', 'tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'];
+    if (!validRoles.includes(currentUser.role)) {
+      showToast("Acces interzis. Nu faci parte din staff.", "error");
+      setTimeout(() => window.location.href = '/', 1500);
+      return;
+    }
+
+    // Setare Badge Rol
+    let roleText = 'Staff';
+    if (currentUser.role === 'manager') roleText = 'Manager Staff';
+    else if (currentUser.role === 'admin') roleText = 'Admin';
+    else if (currentUser.role === 'tester-pd') roleText = 'Tester PD';
+    else if (currentUser.role === 'tester-smurd') roleText = 'Tester SMURD';
+    else if (currentUser.role === 'tester-staff') roleText = 'Tester Staff';
+    else if (currentUser.role === 'manager-mafii') roleText = 'Manager Mafii';
+    roleBadge.textContent = roleText;
+    
+    // Afișare tab-uri vizibile pentru tot staff-ul
+    logsTab.style.display = 'inline-block';
+    
+    const questionsTabBtn = document.getElementById('questionsTab');
+    if (questionsTabBtn) {
+      questionsTabBtn.style.display = 'inline-block';
+    }
+    
+    // Configurare vizibilitate taburi bazat pe rol
+    const editorTabBtn = document.querySelector('[data-target="editorPanel"]');
+    const isTester = ['tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'].includes(currentUser.role);
+    
+    // Restricționare selector întrebări pentru testeri
+    const questionFormSelect = document.getElementById('questionFormSelect');
+    if (questionFormSelect) {
+      if (currentUser.role === 'tester-pd') {
+        questionFormSelect.value = 'police';
+        questionFormSelect.disabled = true;
+      } else if (currentUser.role === 'tester-smurd') {
+        questionFormSelect.value = 'smurd';
+        questionFormSelect.disabled = true;
+      } else if (currentUser.role === 'tester-staff') {
+        questionFormSelect.value = 'staff';
+        questionFormSelect.disabled = true;
+      } else if (currentUser.role === 'manager-mafii') {
+        questionFormSelect.value = 'gang';
+        questionFormSelect.disabled = true;
+      } else {
+        questionFormSelect.disabled = false;
+      }
+    }
+
+    if (isTester) {
+      // Ascunde editorul pentru testeri
+      if (editorTabBtn) editorTabBtn.style.display = 'none';
+      
+      // Activează tab-ul de aplicații implicit
+      document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+      applicationsTab.classList.add('active');
+      
+      document.querySelectorAll('.admin-tab-panel').forEach(panel => panel.classList.remove('active'));
+      document.getElementById('applicationsPanel').classList.add('active');
+      
+      // Încarcă panoul de aplicații
+      loadApplicationsPanel();
+    } else {
+      // Pentru manager sau admin de regulamente
+      if (editorTabBtn) editorTabBtn.style.display = 'inline-block';
+      // Încărcare date regulamente pentru editor
+      await fetchRulesData();
+      populateChapters();
+    }
+
+    // Afișare tab Manager dacă este manager staff (manager sau admin)
+    const isManagerStaff = ['manager', 'admin'].includes(currentUser.role);
+    if (isManagerStaff) {
+      managerTab.style.display = 'inline-block';
+      loadPendingUsers();
+      loadActiveStaff();
+    }
+
   } catch (error) {
-    console.error("Eroare verificare sesiune:", error);
+    showToast("Eroare la verificarea conexiunii cu serverul.", "error");
   }
 }
 
-function renderUserWidget() {
-  const initials = currentUser.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  headerActions.innerHTML = `
-    <div class="user-profile-widget">
-      <div class="user-avatar">${initials}</div>
-      <div class="user-info">
-        <span class="user-name">${currentUser.fullName}</span>
-        <span class="user-role-badge">${currentUser.role}</span>
-      </div>
-    </div>
-    <a href="/admin.html" class="btn-primary" style="text-decoration: none; font-size: 0.85rem; padding: 0.5rem 1rem;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Panou Control
-    </a>
-  `;
-}
-
-function renderLoginButton() {
-  headerActions.innerHTML = `
-    <button class="btn-primary" id="openAuthBtn">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-      Conectare
-    </button>
-  `;
-  document.getElementById('openAuthBtn').addEventListener('click', () => openModal());
-}
-
-// ==========================================
-// REGULAMENTE LOADING & RENDERING
-// ==========================================
-async function loadRules() {
+async function fetchRulesData() {
   try {
     const response = await fetch('/api/rules');
-    allRulesData = await response.json();
-    
-    // Generare interfață pentru categoria curentă
-    switchCategory(currentCategory);
+    rulesData = await response.json();
   } catch (error) {
-    console.error("Eroare încărcare regulamente:", error);
-    rulesContainer.innerHTML = `
-      <div class="rules-empty-state">
-        <h3 style="color: var(--primary);">Eroare de conexiune</h3>
-        <p>Nu s-au putut încărca regulamentele de pe server. Te rugăm să reîncerci.</p>
-      </div>
-    `;
+    showToast("Eroare la încărcarea datelor regulamentului.", "error");
   }
 }
 
-// Switch Category Tab
-categoriesNav.addEventListener('click', (e) => {
-  const tab = e.target.closest('.category-tab');
-  if (!tab) return;
-
-  document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-  tab.classList.add('active');
-
-  const category = tab.dataset.category;
-  switchCategory(category);
-});
-
-function switchCategory(categoryKey) {
-  currentCategory = categoryKey;
-  
-  if (categoryKey === 'applications') {
-    renderApplicationsSidebar();
-    loadAndRenderApplicationForm('smurd'); // implicit încarcă SMURD
-    return;
-  }
-
-  if (!allRulesData || !allRulesData[categoryKey]) return;
-
-  const categoryData = allRulesData[categoryKey];
-  
-  // 1. Randează Sidebar
-  renderSidebar(categoryData);
-
-  // 2. Randează Textul Regulamentului
-  renderRulesText(categoryData);
-
-  // 3. Reinițializează Scrollspy
-  initScrollspy();
-}
-
-function renderSidebar(categoryData) {
-  chaptersList.innerHTML = '';
-  
-  categoryData.chapters.forEach((chapter, index) => {
-    const li = document.createElement('li');
-    li.className = `chapter-item ${index === 0 ? 'expanded' : ''}`;
-    
-    const chapterBtn = document.createElement('button');
-    chapterBtn.className = `chapter-btn ${index === 0 ? 'active' : ''}`;
-    chapterBtn.dataset.target = chapter.id;
-    chapterBtn.innerHTML = `
-      <span>${chapter.title}</span>
-      <svg class="chapter-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
-    `;
-
-    // Click pe capitol -> expandează/colapsează subcapitole și navighează la capitol
-    chapterBtn.addEventListener('click', (e) => {
-      // Toggle expanded class pe elementul părinte li
-      const parent = chapterBtn.closest('.chapter-item');
-      
-      // Colapsează celelalte capitole (opțional, dar arată mai curat)
-      document.querySelectorAll('.chapter-item').forEach(item => {
-        if (item !== parent) item.classList.remove('expanded');
-      });
-      parent.classList.toggle('expanded');
-
-      // Scroll smooth la capitol
-      const targetEl = document.getElementById(chapter.id);
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth' });
+// ==========================================
+// EVENTS SETUP
+// ==========================================
+function setupEventListeners() {
+  // Deconectare
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      const data = await response.json();
+      if (data.success) {
+        showToast("Te-ai deconectat cu succes.", "success");
+        setTimeout(() => window.location.href = '/', 1000);
       }
-
-      // Setează clasa active
-      document.querySelectorAll('.chapter-btn').forEach(btn => btn.classList.remove('active'));
-      chapterBtn.classList.add('active');
-    });
-
-    const subList = document.createElement('ul');
-    subList.className = 'subchapters-list';
-    
-    chapter.subchapters.forEach(sub => {
-      const subLi = document.createElement('li');
-      const subLink = document.createElement('a');
-      subLink.className = 'subchapter-link';
-      subLink.href = `#${sub.id}`;
-      subLink.textContent = sub.title;
-      
-      // Click pe subcapitol -> navighează fin
-      subLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const targetEl = document.getElementById(sub.id);
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth' });
-          // Scurtă animație pulsatorie pe fundalul textului
-          targetEl.classList.add('highlighted-pulse');
-          setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3000);
-        }
-
-        document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
-        subLink.classList.add('active');
-      });
-
-      subLi.appendChild(subLink);
-      subList.appendChild(subLi);
-    });
-
-    li.appendChild(chapterBtn);
-    li.appendChild(subList);
-    chaptersList.appendChild(li);
-  });
-}
-
-function renderRulesText(categoryData) {
-  rulesContainer.innerHTML = '';
-
-  if (categoryData.chapters.length === 0) {
-    rulesContainer.innerHTML = `
-      <div class="rules-empty-state">
-        <h3>Regulament gol</h3>
-        <p>Acest regulament nu are capitole adăugate încă.</p>
-      </div>
-    `;
-    return;
-  }
-
-  categoryData.chapters.forEach(chapter => {
-    const chapterDiv = document.createElement('div');
-    chapterDiv.className = 'chapter-section';
-    chapterDiv.id = chapter.id;
-
-    const h2 = document.createElement('h2');
-    h2.className = 'chapter-title';
-    h2.textContent = chapter.title;
-    chapterDiv.appendChild(h2);
-
-    chapter.subchapters.forEach(sub => {
-      const subDiv = document.createElement('div');
-      subDiv.className = 'subchapter-section';
-      subDiv.id = sub.id;
-
-      const h3 = document.createElement('h3');
-      h3.className = 'subchapter-title';
-      h3.textContent = sub.title;
-      subDiv.appendChild(h3);
-
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'subchapter-content';
-      
-      // Formatare text cu badge-uri vizuale
-      const paragraphs = sub.content.split('\n').filter(p => p.trim() !== '');
-      paragraphs.forEach(p => {
-        const pEl = document.createElement('p');
-        pEl.style.marginBottom = '0.75rem';
-        pEl.innerHTML = formatRuleText(p);
-        contentDiv.appendChild(pEl);
-      });
-
-      subDiv.appendChild(contentDiv);
-      chapterDiv.appendChild(subDiv);
-    });
-
-    rulesContainer.appendChild(chapterDiv);
-  });
-  
-  // Generează/actualizează cuprinsul pe pagina curentă (dreapta)
-  updateTOC();
-}
-
-function updateTOC() {
-  if (!tocList) return;
-  tocList.innerHTML = '';
-  
-  const subchapters = document.querySelectorAll('.subchapter-section');
-  if (subchapters.length === 0) {
-    if (tocSidebar) {
-      tocSidebar.style.display = 'none';
-      const mainContent = document.querySelector('.main-content');
-      if (mainContent) mainContent.classList.remove('has-toc');
+    } catch (e) {
+      showToast("Eroare la deconectare.", "error");
     }
-    return;
-  }
+  });
 
-  // Afișează sidebar-ul de TOC
-  if (tocSidebar) {
-    tocSidebar.style.display = 'block';
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) mainContent.classList.add('has-toc');
-  }
+  // Schimbare Tab-uri Admin
+  adminTabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('.admin-tab-btn');
+    if (!btn) return;
 
-  subchapters.forEach(sub => {
-    const titleEl = sub.querySelector('.subchapter-title');
-    if (!titleEl) return;
+    document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
 
-    // Adaugă subcapitolul ca link principal
-    const li = document.createElement('li');
-    const a = document.createElement('a');
-    a.className = 'toc-item';
-    a.href = `#${sub.id}`;
-    
-    let shortTitle = titleEl.textContent;
-    if (shortTitle.length > 38) {
-      shortTitle = shortTitle.substring(0, 35) + '...';
+    const target = btn.dataset.target;
+    document.querySelectorAll('.admin-tab-panel').forEach(panel => {
+      panel.classList.remove('active');
+    });
+    document.getElementById(target).classList.add('active');
+
+    if (target === 'managerPanel') {
+      loadPendingUsers();
+      loadActiveStaff();
+    } else if (target === 'logsPanel') {
+      loadLogs();
+    } else if (target === 'applicationsPanel') {
+      loadApplicationsPanel();
+    } else if (target === 'questionsPanel') {
+      loadQuestionsEditor();
     }
-    a.textContent = shortTitle;
+  });
 
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  // Selector Categorie Editor
+  editCategorySelect.addEventListener('change', () => {
+    populateChapters();
+  });
 
-      const target = document.getElementById(sub.id);
-      if (target) {
-        const yOffset = -90; 
-        const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
+  // Selector Capitol Editor
+  editChapterSelect.addEventListener('change', () => {
+    populateSubchapters();
+  });
 
-        target.classList.add('highlighted-pulse');
-        setTimeout(() => target.classList.remove('highlighted-pulse'), 3000);
+  // Selector Subcapitol Editor
+  editSubchapterSelect.addEventListener('change', () => {
+    loadSubchapterContent();
+  });
+
+  // Live Editor Typing
+  ruleTextEditor.addEventListener('input', () => {
+    updateLivePreview();
+    saveRuleBtn.disabled = false;
+  });
+
+  // Salvare Regulament
+  saveRuleBtn.addEventListener('click', async () => {
+    const content = ruleTextEditor.value;
+    const { category, chapterId, subchapterId } = currentSelectedRule;
+
+    if (!category || !chapterId || !subchapterId) return;
+
+    try {
+      saveRuleBtn.disabled = true;
+      saveRuleBtn.textContent = 'Se salvează...';
+      
+      const response = await fetch('/api/rules/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categoryKey: category,
+          chapterId,
+          subchapterId,
+          content
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showToast("Modificările au fost salvate cu succes!", "success");
+        await fetchRulesData(); // reîncarcă datele
+      } else {
+        showToast(data.message, "error");
       }
+    } catch (e) {
+      showToast("Eroare la salvarea regulamentului.", "error");
+    } finally {
+      saveRuleBtn.disabled = true;
+      saveRuleBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvează Modificările
+      `;
+    }
+  });
 
-      document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
-      a.classList.add('active');
+  // Gestiune Întrebări Event Listeners
+  const questionFormSelect = document.getElementById('questionFormSelect');
+  if (questionFormSelect) {
+    questionFormSelect.addEventListener('change', () => {
+      loadQuestionsEditor();
     });
+  }
 
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    // Dacă are sub-reguli (bullet points), le adăugăm ca sub-link-uri
-    const paragraphs = sub.querySelectorAll('.subchapter-content p');
-    paragraphs.forEach((p, pIdx) => {
-      const text = p.textContent.trim();
-      if (text.startsWith('•')) {
-        // Generează ID unic pentru paragraf dacă nu are deja
-        if (!p.id) {
-          p.id = `${sub.id}-p-${pIdx}`;
-        }
-
-        // Extragere denumire regulă (până la primul dash sau două puncte)
-        let ruleName = text.replace(/^•\s*/, '').split(/[-–—:]/)[0].trim();
-        if (ruleName.length > 35) {
-          ruleName = ruleName.substring(0, 32) + '...';
-        }
-
-        const subLi = document.createElement('li');
-        const subA = document.createElement('a');
-        subA.className = 'toc-sub-item';
-        subA.href = `#${p.id}`;
-        subA.textContent = ruleName;
-
-        subA.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const target = document.getElementById(p.id);
-          if (target) {
-            const yOffset = -120; // offset mai generos pentru vizibilitate
-            const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
-            window.scrollTo({ top: y, behavior: 'smooth' });
-
-            target.classList.add('highlighted-pulse');
-            setTimeout(() => target.classList.remove('highlighted-pulse'), 3000);
-          }
-
-          document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
-          subA.classList.add('active');
-        });
-
-        subLi.appendChild(subA);
-        tocList.appendChild(subLi);
-      }
+  const addQuestionBtn = document.getElementById('addQuestionBtn');
+  if (addQuestionBtn) {
+    addQuestionBtn.addEventListener('click', () => {
+      addNewQuestionRow();
     });
+  }
+
+  const saveQuestionsBtn = document.getElementById('saveQuestionsBtn');
+  if (saveQuestionsBtn) {
+    saveQuestionsBtn.addEventListener('click', () => {
+      saveQuestions();
+    });
+  }
+
+  // Setup pentru modalul de detalii aplicație și butoane de toggle
+  setupApplicationsTabEventListeners();
+}
+
+// ==========================================
+// EDITOR MANAGEMENT
+// ==========================================
+function populateChapters() {
+  const categoryKey = editCategorySelect.value;
+  editChapterSelect.innerHTML = '<option value="" disabled selected>-- Alege Capitol --</option>';
+  editSubchapterSelect.innerHTML = '<option value="" disabled selected>-- Alege Subcapitol --</option>';
+  
+  // Resetează editor
+  ruleTextEditor.value = '';
+  ruleTextEditor.disabled = true;
+  editorLivePreview.innerHTML = '<span style="color: var(--text-dark);">Alege capitol și subcapitol pentru previzualizare.</span>';
+  editorTitleDisplay.textContent = 'Selectează un subcapitol pentru a edita';
+  saveRuleBtn.disabled = true;
+
+  if (!rulesData || !rulesData[categoryKey]) return;
+
+  const chapters = rulesData[categoryKey].chapters;
+  chapters.forEach(ch => {
+    const opt = document.createElement('option');
+    opt.value = ch.id;
+    opt.textContent = ch.title;
+    editChapterSelect.appendChild(opt);
   });
 }
 
-// Helper pentru formatare text reguli în badge-uri vizuale
+function populateSubchapters() {
+  const categoryKey = editCategorySelect.value;
+  const chapterId = editChapterSelect.value;
+  editSubchapterSelect.innerHTML = '<option value="" disabled selected>-- Alege Subcapitol --</option>';
+
+  ruleTextEditor.value = '';
+  ruleTextEditor.disabled = true;
+  editorLivePreview.innerHTML = '<span style="color: var(--text-dark);">Alege subcapitol pentru previzualizare.</span>';
+  editorTitleDisplay.textContent = 'Selectează un subcapitol';
+  saveRuleBtn.disabled = true;
+
+  if (!rulesData || !rulesData[categoryKey] || !chapterId) return;
+
+  const chapter = rulesData[categoryKey].chapters.find(c => c.id === chapterId);
+  if (!chapter) return;
+
+  chapter.subchapters.forEach(sub => {
+    const opt = document.createElement('option');
+    opt.value = sub.id;
+    opt.textContent = sub.title;
+    editSubchapterSelect.appendChild(opt);
+  });
+}
+
+function loadSubchapterContent() {
+  const categoryKey = editCategorySelect.value;
+  const chapterId = editChapterSelect.value;
+  const subchapterId = editSubchapterSelect.value;
+
+  if (!rulesData || !categoryKey || !chapterId || !subchapterId) return;
+
+  const chapter = rulesData[categoryKey].chapters.find(c => c.id === chapterId);
+  const subchapter = chapter.subchapters.find(s => s.id === subchapterId);
+
+  if (subchapter) {
+    currentSelectedRule = { category: categoryKey, chapterId, subchapterId };
+    
+    editorTitleDisplay.textContent = subchapter.title;
+    ruleTextEditor.value = subchapter.content;
+    ruleTextEditor.disabled = false;
+    
+    updateLivePreview();
+    saveRuleBtn.disabled = true; // activat doar la modificări (input)
+  }
+}
+
+function updateLivePreview() {
+  const text = ruleTextEditor.value.trim();
+  if (!text) {
+    editorLivePreview.innerHTML = '<span style="color: var(--text-dark);">Niciun conținut de previzualizat.</span>';
+    return;
+  }
+
+  // Conversie simplă text în paragrafe HTML cu badge-uri
+  const paragraphs = text.split('\n').filter(p => p.trim() !== '');
+  editorLivePreview.innerHTML = '';
+  paragraphs.forEach(p => {
+    const pEl = document.createElement('p');
+    pEl.style.marginBottom = '0.75rem';
+    pEl.innerHTML = formatRuleText(p);
+    editorLivePreview.appendChild(pEl);
+  });
+}
+
 function formatRuleText(text) {
   let escaped = text
     .replace(/&/g, "&amp;")
@@ -429,48 +418,41 @@ function formatRuleText(text) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
-  let primaryBadge = '';
-  let secondaryBadge = '';
+  let badges = [];
 
-  // 1. Extrage Amenzile (Primar)
+  // 1. Extrage Amenzile
   escaped = escaped.replace(/Amenda\s+([0-9.,]+)\$/gi, (match, p1) => {
-    primaryBadge = `<span class="badge badge-fine">💵 Amendă: ${p1}$</span>`;
+    badges.push(`<span class="badge badge-fine">💵 Amendă: ${p1}$</span>`);
     return '';
   });
 
-  // 2. Extrage Check Points (Primar)
-  escaped = escaped.replace(/([0-9.]+)\s+Check\s+Points/gi, (match, p1) => {
-    primaryBadge = `<span class="badge badge-cp">📍 ${p1} CP</span>`;
-    return '';
-  });
-
-  // 3. Extrage Sentințele (Închisoare) (Secundar)
+  // 2. Extrage Sentințele (Închisoare)
   escaped = escaped.replace(/Sentință\s+([0-9.]+)\s+Luni/gi, (match, p1) => {
-    secondaryBadge = `<span class="badge badge-jail">🔒 Închisoare: ${p1} Luni</span>`;
+    badges.push(`<span class="badge badge-jail">🔒 Închisoare: ${p1} Luni</span>`);
     return '';
   });
 
-  // 4. Extrage Avertismentele (Warn) (Secundar)
+  // 3. Extrage Check Points
+  escaped = escaped.replace(/([0-9.]+)\s+Check\s+Points/gi, (match, p1) => {
+    badges.push(`<span class="badge badge-cp">📍 ${p1} CP</span>`);
+    return '';
+  });
+
+  // 4. Extrage Avertismentele (Warn)
   escaped = escaped.replace(/([0-9.]+)\s+Warn/gi, (match, p1) => {
-    secondaryBadge = `<span class="badge badge-warn">⚠️ ${p1} Warn</span>`;
+    badges.push(`<span class="badge badge-warn">⚠️ ${p1} Warn</span>`);
     return '';
   });
 
-  // 5. Extrage Mute minute (Secundar)
+  // 5. Extrage Mute minute
   escaped = escaped.replace(/([0-9.]+)\s+minute/gi, (match, p1) => {
-    secondaryBadge = `<span class="badge badge-jail">🔇 ${p1} Min Mute</span>`;
+    badges.push(`<span class="badge badge-jail">🔇 ${p1} Min Mute</span>`);
     return '';
   });
 
-  // 6. Extrage Ban (Secundar)
+  // 6. Extrage Ban
   escaped = escaped.replace(/Ban\s+Permanent/gi, () => {
-    secondaryBadge = `<span class="badge badge-ban">🚫 Ban Permanent</span>`;
-    return '';
-  });
-
-  // 7. Extrage Kick (Secundar)
-  escaped = escaped.replace(/Kick/gi, () => {
-    secondaryBadge = `<span class="badge badge-kick">👢 Kick</span>`;
+    badges.push(`<span class="badge badge-ban">🚫 Ban Permanent</span>`);
     return '';
   });
 
@@ -483,700 +465,826 @@ function formatRuleText(text) {
 
   cleanText = cleanText.replace(/\s+/g, ' ');
 
-  // Adaugă textul "(În funcție de gravitate)" deasupra avertismentelor (warns)
-  if (secondaryBadge && secondaryBadge.includes('badge-warn')) {
-    secondaryBadge = `
-      <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1;">
-        <span style="font-size: 0.62rem; color: var(--text-muted); margin-bottom: 3px; text-align: right; white-space: nowrap; font-weight: 500;">(În funcție de gravitate)</span>
-        ${secondaryBadge}
-      </div>
-    `;
-  }
-
-  if (primaryBadge || secondaryBadge) {
-    return `
-      <span class="rule-text">${cleanText}</span>
-      <div class="rule-badges">
-        <div class="badge-slot primary-slot">${primaryBadge || ''}</div>
-        <div class="badge-slot secondary-slot">${secondaryBadge || ''}</div>
-      </div>
-    `;
+  if (badges.length > 0) {
+    return `<span class="rule-text">${cleanText}</span><span class="rule-badges">${badges.join('')}</span>`;
   } else {
     return `<span class="rule-text">${cleanText}</span>`;
   }
 }
 
 // ==========================================
-// SCROLLSPY OBSERVER
+// MANAGER PANEL MANAGEMENT (CERERI STAFF)
 // ==========================================
-function initScrollspy() {
-  if (scrollspyObserver) {
-    scrollspyObserver.disconnect();
+async function loadPendingUsers() {
+  try {
+    const response = await fetch('/api/admin/users/pending');
+    const data = await response.json();
+
+    if (data.success) {
+      renderPendingUsers(data.users);
+    }
+  } catch (error) {
+    console.error("Eroare încărcare utilizatori pending:", error);
   }
-
-  const subchapters = document.querySelectorAll('.subchapter-section');
-  if (subchapters.length === 0) return;
-
-  const options = {
-    root: null,
-    rootMargin: '-150px 0px -70% 0px', // ajustat pentru o mai mare precizie la reguli individuale
-    threshold: 0
-  };
-
-  scrollspyObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = entry.target.id;
-        
-        // Cazul 1: S-a intersectat un paragraf de regulă individual (sub-item în TOC)
-        if (id.includes('-p-')) {
-          const activeTocLink = document.querySelector(`.toc-sub-item[href="#${id}"]`);
-          if (activeTocLink) {
-            document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
-            activeTocLink.classList.add('active');
-          }
-        } 
-        // Cazul 2: S-a intersectat o secțiune mare (subcapitol / capitol)
-        else {
-          // Caută link-ul corespunzător în sidebar (stânga)
-          const activeLink = document.querySelector(`.subchapter-link[href="#${id}"]`);
-          if (activeLink) {
-            document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
-            activeLink.classList.add('active');
-
-            // Caută butonul capitolului părinte și extinde-l
-            const chapterItem = activeLink.closest('.chapter-item');
-            if (chapterItem) {
-              document.querySelectorAll('.chapter-btn').forEach(btn => btn.classList.remove('active'));
-              chapterItem.querySelector('.chapter-btn').classList.add('active');
-              
-              if (!chapterItem.classList.contains('expanded')) {
-                document.querySelectorAll('.chapter-item').forEach(item => {
-                  if (item !== chapterItem) item.classList.remove('expanded');
-                });
-                chapterItem.classList.add('expanded');
-              }
-            }
-          }
-
-          // Caută și activează link-ul corespunzător în TOC (dreapta)
-          const activeTocLink = document.querySelector(`.toc-item[href="#${id}"]`);
-          if (activeTocLink) {
-            document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
-            activeTocLink.classList.add('active');
-          }
-        }
-      }
-    });
-  }, options);
-
-  // Observăm capitolele mari și fiecare regulă individuală în parte pentru sincronizare fină
-  subchapters.forEach(sec => scrollspyObserver.observe(sec));
 }
 
-// ==========================================
-// INTERACTIVE SEARCH
-// ==========================================
-rulesSearch.addEventListener('input', (e) => {
-  const query = e.target.value.toLowerCase().trim();
-  if (query.length < 2) {
-    searchResults.innerHTML = '';
-    searchResults.classList.remove('active');
+function getFriendlyRoleName(role) {
+  if (role === 'manager') return 'Manager Staff';
+  if (role === 'admin') return 'Admin';
+  if (role === 'tester-pd') return 'Tester PD';
+  if (role === 'tester-smurd') return 'Tester SMURD';
+  if (role === 'tester-staff') return 'Tester Staff';
+  if (role === 'manager-mafii') return 'Manager Mafii';
+  return role;
+}
+
+function renderPendingUsers(users) {
+  pendingCountBadge.textContent = users.length;
+  if (users.length === 0) {
+    pendingCountBadge.style.display = 'none';
+    pendingUsersTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: var(--text-dark); padding: 2rem;">Nu există cereri de înregistrare în așteptare.</td>
+      </tr>
+    `;
     return;
   }
 
-  const results = [];
-
-  // Parcurgere toate categoriile, capitolele și subcapitolele pentru indexare
-  Object.keys(allRulesData).forEach(catKey => {
-    const category = allRulesData[catKey];
-    category.chapters.forEach(chapter => {
-      chapter.subchapters.forEach(sub => {
-        // Împărțim textul pe paragrafe pentru a permite căutarea de reguli individuale
-        const paragraphs = sub.content.split('\n').filter(p => p.trim() !== '');
-        
-        paragraphs.forEach(pText => {
-          // Normalizare text (eliminare cratime, spații etc.) pentru a permite căutarea de tip metagaming -> Meta-Gaming
-          const normalizedPText = pText.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const normalizedQuery = query.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-          if (normalizedPText.includes(normalizedQuery)) {
-            const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-            let highlightedText = pText.replace(regex, '<mark>$1</mark>');
-            
-            // Fallback pentru highlight dacă există cratime/separatori diferiți
-            if (highlightedText === pText) {
-              const queryParts = query.split(/[^a-z0-9]+/i).filter(part => part.length >= 2);
-              queryParts.forEach(part => {
-                const partRegex = new RegExp(`(${escapeRegExp(part)})`, 'gi');
-                highlightedText = highlightedText.replace(partRegex, '<mark>$1</mark>');
-              });
-            }
-
-            results.push({
-              categoryKey: catKey,
-              categoryName: category.title,
-              chapterId: chapter.id,
-              subchapterId: sub.id,
-              subchapterTitle: sub.title,
-              pText: pText,
-              snippet: highlightedText
-            });
-          }
-        });
-
-        // Potrivire pe titlu de capitol (ca fallback secundar)
-        if (sub.title.toLowerCase().includes(query) && !sub.content.toLowerCase().includes(query)) {
-          results.push({
-            categoryKey: catKey,
-            categoryName: category.title,
-            chapterId: chapter.id,
-            subchapterId: sub.id,
-            subchapterTitle: sub.title,
-            pText: null,
-            snippet: sub.content.substring(0, 100) + '...'
-          });
-        }
-      });
-    });
-  });
-
-  // Randare rezultate
-  renderSearchResults(results, query);
-});
-
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function renderSearchResults(results, query) {
-  searchResults.innerHTML = '';
-
-  if (results.length === 0) {
-    searchResults.innerHTML = `
-      <div class="search-results-empty">
-        Nu s-a găsit niciun rezultat pentru "<strong>${query}</strong>"
-      </div>
-    `;
-  } else {
-    results.forEach(res => {
-      const div = document.createElement('div');
-      div.className = 'search-result-item';
-      div.innerHTML = `
-        <div class="search-result-path">${res.categoryName} &rsaquo; ${res.subchapterTitle}</div>
-        <div class="search-result-snippet">${res.snippet}</div>
-      `;
-
-      div.addEventListener('click', () => {
-        // Închide dropdown
-        searchResults.classList.remove('active');
-        rulesSearch.value = '';
-
-        // Salt la categorie
-        if (currentCategory !== res.categoryKey) {
-          const tab = document.querySelector(`.category-tab[data-category="${res.categoryKey}"]`);
-          if (tab) {
-            document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            switchCategory(res.categoryKey);
-          }
-        }
-
-        // Salt la subcapitol sau paragraf cu scroll și expandare
-        setTimeout(() => {
-          const targetEl = document.getElementById(res.subchapterId);
-          if (targetEl) {
-            if (res.pText) {
-              // Căutăm exact paragraful care conține textul regulii
-              const paragraphs = targetEl.querySelectorAll('.subchapter-content p');
-              let foundParagraph = null;
-              
-              // Curățăm textul pentru a asigura potrivirea în ciuda caracterelor bullet sau HTML
-              const cleanSearchText = res.pText.replace(/^[•\s\-\*]+/g, '').trim();
-              
-              for (const p of paragraphs) {
-                if (p.textContent.includes(cleanSearchText)) {
-                  foundParagraph = p;
-                  break;
-                }
-              }
-              
-              if (foundParagraph) {
-                // Scroll la paragraful exact
-                const yOffset = -120;
-                const y = foundParagraph.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                window.scrollTo({ top: y, behavior: 'smooth' });
-                
-                foundParagraph.classList.add('highlighted-pulse');
-                setTimeout(() => foundParagraph.classList.remove('highlighted-pulse'), 3500);
-              } else {
-                // Fallback la titlul subcapitolului
-                const yOffset = -90;
-                const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                window.scrollTo({ top: y, behavior: 'smooth' });
-                targetEl.classList.add('highlighted-pulse');
-                setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3500);
-              }
-            } else {
-              // Scroll direct la subcapitol
-              const yOffset = -90;
-              const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
-              window.scrollTo({ top: y, behavior: 'smooth' });
-              targetEl.classList.add('highlighted-pulse');
-              setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3500);
-            }
-
-            // Activare în sidebar
-            const activeLink = document.querySelector(`.subchapter-link[href="#${res.subchapterId}"]`);
-            if (activeLink) {
-              document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
-              activeLink.classList.add('active');
-              
-              const parent = activeLink.closest('.chapter-item');
-              if (parent) {
-                document.querySelectorAll('.chapter-item').forEach(item => item.classList.remove('expanded'));
-                parent.classList.add('expanded');
-              }
-            }
-          }
-        }, 150); // timp scurt pentru re-randare pagină dacă s-a schimbat categoria
-      });
-
-      searchResults.appendChild(div);
-    });
-  }
-
-  searchResults.classList.add('active');
-}
-
-// Close search dropdown on click outside
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.search-wrapper')) {
-    searchResults.classList.remove('active');
-  }
-});
-
-// ==========================================
-// MODAL & AUTH FORMS
-// ==========================================
-function openModal() {
-  authModal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeModal() {
-  authModal.classList.remove('active');
-  document.body.style.overflow = '';
-  loginForm.reset();
-  registerForm.reset();
-}
-
-closeAuthBtn.addEventListener('click', closeModal);
-authModal.addEventListener('click', (e) => {
-  if (e.target === authModal) closeModal();
-});
-
-// Modal Tab Switch (Login / Register)
-modalTabs.addEventListener('click', (e) => {
-  const tabBtn = e.target.closest('.modal-tab-btn');
-  if (!tabBtn) return;
-
-  document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active'));
-  tabBtn.classList.add('active');
-
-  const targetTab = tabBtn.dataset.tab;
-  if (targetTab === 'login') {
-    loginForm.classList.add('active');
-    registerForm.classList.remove('active');
-  } else {
-    loginForm.classList.remove('active');
-    registerForm.classList.add('active');
-  }
-});
-
-// Submit Login
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = document.getElementById('loginUsername').value;
-  const password = document.getElementById('loginPassword').value;
-  const rememberMe = document.getElementById('loginRememberMe').checked;
-
-  try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, rememberMe })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      showToast("Conectare reușită! Bine ai venit.", "success");
-      currentUser = data.user;
-      renderUserWidget();
-      closeModal();
-      
-      // Auto-redirect la admin dacă are grad staff
-      const isStaff = ['admin', 'manager', 'tester-pd', 'tester-smurd', 'tester-staff', 'manager-mafii'].includes(currentUser.role);
-      if (isStaff) {
-        setTimeout(() => window.location.href = '/admin.html', 1000);
-      }
-    } else {
-      showToast(data.message, "error");
-    }
-  } catch (error) {
-    showToast("Eroare tehnică la conectare.", "error");
-  }
-});
-
-// Submit Register
-registerForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = document.getElementById('regUsername').value;
-  const fullName = document.getElementById('regFullName').value;
-  const discordId = document.getElementById('regDiscord').value;
-  const password = document.getElementById('regPassword').value;
-  const requestedRole = document.getElementById('regRole').value;
-
-  try {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, fullName, discordId, password, requestedRole })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      closeModal();
-      // Popup popup de atentionare personalizat
-      alert(`⚠️ ÎNREGISTRARE REUȘITĂ!\n\nContul tău ("${username}") a fost adăugat în sistem.\nPentru a te putea conecta, cererea trebuie să fie aprobată mai întâi de un Manager Staff.\n\nTe rugăm să iei legătura cu un Manager pentru activare.`);
-      showToast("Cererea ta a fost înregistrată! Așteaptă aprobarea.", "info");
-    } else {
-      showToast(data.message, "error");
-    }
-  } catch (error) {
-    showToast("Eroare la trimiterea cererii.", "error");
-  }
-});
-
-// ==========================================
-// SECȚIUNE APLICAȚII PORTAL (JUCĂTORI)
-// ==========================================
-let uploadedGangImageBase64 = '';
-let uploadedBulletinImageBase64 = '';
-
-function renderApplicationsSidebar() {
-  // Oprește scrollspy observer temporar
-  if (scrollspyObserver) {
-    scrollspyObserver.disconnect();
-  }
-  updateTOC(); // Ascunde sidebar TOC (dreapta)
+  pendingCountBadge.style.display = 'inline-block';
+  pendingUsersTableBody.innerHTML = '';
   
-  chaptersList.innerHTML = `
-    <h3 class="sidebar-title" style="margin-top: 0;">Tipuri Aplicații</h3>
-    <li class="chapter-item expanded">
-      <button class="chapter-btn active" data-form="smurd">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        Aplicație SMURD
-      </button>
-    </li>
-    <li class="chapter-item expanded">
-      <button class="chapter-btn" data-form="police">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Aplicație Poliție
-      </button>
-    </li>
-    <li class="chapter-item expanded">
-      <button class="chapter-btn" data-form="staff">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Aplicație Staff
-      </button>
-    </li>
-    <li class="chapter-item expanded">
-      <button class="chapter-btn" data-form="gang">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Cerere Gang / Mafie
-      </button>
-    </li>
-  `;
-
-  // Listeneri pe sidebar de aplicații
-  document.querySelectorAll('.chapter-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.chapter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const formType = btn.dataset.form;
-      loadAndRenderApplicationForm(formType);
+  users.forEach(user => {
+    const tr = document.createElement('tr');
+    
+    const dateStr = new Date(user.createdAt).toLocaleDateString('ro-RO', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
+
+    tr.innerHTML = `
+      <td><strong>${user.username}</strong></td>
+      <td>${user.fullName}</td>
+      <td><code>${user.discordId}</code></td>
+      <td><span style="color: ${user.role === 'manager' ? 'var(--primary)' : 'var(--accent-blue)'}; font-weight: 700; text-transform: uppercase; font-size: 0.8rem;">${getFriendlyRoleName(user.role)}</span></td>
+      <td>${dateStr}</td>
+      <td style="text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+        <button class="action-badge-btn approve" data-user="${user.username}">Aprobă</button>
+        <button class="action-badge-btn reject" data-user="${user.username}">Respinge</button>
+      </td>
+    `;
+
+    // Evenimente pe butoanele de acțiune
+    tr.querySelector('.approve').addEventListener('click', () => handleApproveUser(user.username));
+    tr.querySelector('.reject').addEventListener('click', () => handleRejectUser(user.username));
+
+    pendingUsersTableBody.appendChild(tr);
   });
 }
 
-async function loadAndRenderApplicationForm(type) {
-  rulesContainer.innerHTML = '<div class="rules-empty-state"><h3>Se încarcă formularul...</h3></div>';
-  uploadedGangImageBase64 = ''; // resetează poza încărcată
-  uploadedBulletinImageBase64 = ''; // resetează poza buletin
+async function handleApproveUser(username) {
+  if (!confirm(`Sigur dorești să aprobi utilizatorul "${username}" ca membru staff?`)) return;
 
-  // Verificare aplicație existentă în curs de evaluare
-  const existingAppId = localStorage.getItem(`pending_app_${type}`);
-  if (existingAppId) {
-    try {
-      const checkRes = await fetch(`/api/applications/check-status?id=${existingAppId}`);
-      const checkData = await checkRes.json();
-      if (checkData.success && checkData.status === 'pending') {
-        let friendlyName = '';
-        if (type === 'smurd') friendlyName = 'SMURD';
-        else if (type === 'police') friendlyName = 'Poliție (PD)';
-        else if (type === 'staff') friendlyName = 'Staff Server';
-        else if (type === 'gang') friendlyName = 'Grupare Infracțională (Gang/Mafie)';
-
-        rulesContainer.innerHTML = `
-          <div class="rules-empty-state" style="padding: 4rem 2rem;">
-            <div style="font-size: 3.5rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 10px rgba(226, 27, 60, 0.3));">⏳</div>
-            <h3 style="color: var(--primary); font-family: 'Outfit', sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">Aplicație în verificare</h3>
-            <p style="color: var(--text-light); max-width: 500px; margin: 0 auto 1.5rem auto; line-height: 1.6;">
-              Ai deja o aplicație trimisă pentru secțiunea <strong>${friendlyName}</strong> care se află în curs de evaluare de către Staff-ul VIPURI.
-            </p>
-            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-light); padding: 1rem; border-radius: 8px; display: inline-block; max-width: 100%;">
-              <span style="font-size: 0.85rem; color: var(--text-muted);">Cod Unic Identificare:</span>
-              <code style="display: block; font-family: monospace; font-size: 1rem; color: var(--primary); font-weight: bold; margin-top: 0.25rem;">${existingAppId}</code>
-            </div>
-            <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">Vei putea trimite o nouă cerere numai după ce un Manager procesează aplicația actuală.</p>
-          </div>
-        `;
-        return;
-      } else if (checkData.success && (checkData.status === 'accepted' || checkData.status === 'rejected' || checkData.status === 'not_found')) {
-        localStorage.removeItem(`pending_app_${type}`);
-      }
-    } catch (e) {
-      console.error("Eroare la verificarea statusului aplicației:", e);
+  try {
+    const response = await fetch('/api/admin/users/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Utilizatorul ${username} a fost aprobat!`, "success");
+      loadPendingUsers();
+      loadActiveStaff();
+    } else {
+      showToast(data.message, "error");
     }
+  } catch (error) {
+    showToast("Eroare la aprobarea utilizatorului.", "error");
+  }
+}
+
+async function handleRejectUser(username) {
+  if (!confirm(`Sigur dorești să respingi cererea utilizatorului "${username}"? Contul va fi șters permanent.`)) return;
+
+  try {
+    const response = await fetch('/api/admin/users/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Cererea utilizatorului ${username} a fost ștearsă.`, "info");
+      loadPendingUsers();
+    } else {
+      showToast(data.message, "error");
+    }
+  } catch (error) {
+    showToast("Eroare la respingerea utilizatorului.", "error");
+  }
+}
+
+// ==========================================
+// MANAGER PANEL MANAGEMENT (STAFF ACTIV)
+// ==========================================
+async function loadActiveStaff() {
+  try {
+    const response = await fetch('/api/admin/users/list');
+    const data = await response.json();
+
+    if (data.success) {
+      renderActiveStaff(data.users);
+    }
+  } catch (error) {
+    console.error("Eroare încărcare staff activ:", error);
+  }
+}
+
+function renderActiveStaff(users) {
+  activeUsersTableBody.innerHTML = '';
+  
+  if (users.length === 0) {
+    activeUsersTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: var(--text-dark);">Eroare. Nu există membri activi.</td>
+      </tr>
+    `;
+    return;
   }
 
+  users.forEach(user => {
+    const tr = document.createElement('tr');
+    
+    const dateStr = new Date(user.createdAt).toLocaleDateString('ro-RO', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+
+    const isSelf = user.username.toLowerCase() === currentUser.username.toLowerCase();
+
+    tr.innerHTML = `
+      <td><strong>${user.username} ${isSelf ? '<span style="font-weight: normal; color: var(--text-dark);">(Tu)</span>' : ''}</strong></td>
+      <td>${user.fullName}</td>
+      <td><code>${user.discordId}</code></td>
+      <td>
+        <select class="form-select role-select" data-user="${user.username}" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; width: 140px;" ${isSelf ? 'disabled' : ''}>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+          <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Manager</option>
+          <option value="tester-pd" ${user.role === 'tester-pd' ? 'selected' : ''}>Tester PD</option>
+          <option value="tester-smurd" ${user.role === 'tester-smurd' ? 'selected' : ''}>Tester SMURD</option>
+          <option value="tester-staff" ${user.role === 'tester-staff' ? 'selected' : ''}>Tester Staff</option>
+          <option value="manager-mafii" ${user.role === 'manager-mafii' ? 'selected' : ''}>Manager Mafii</option>
+        </select>
+      </td>
+      <td>${dateStr}</td>
+      <td style="text-align: right;">
+        <button class="action-badge-btn delete" data-user="${user.username}" ${isSelf ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : ''}>Șterge Cont</button>
+      </td>
+    `;
+
+    // Schimbare rol staff
+    if (!isSelf) {
+      tr.querySelector('.role-select').addEventListener('change', (e) => {
+        handleUpdateRole(user.username, e.target.value);
+      });
+      tr.querySelector('.delete').addEventListener('click', () => {
+        handleDeleteStaff(user.username);
+      });
+    }
+
+    activeUsersTableBody.appendChild(tr);
+  });
+}
+
+async function handleUpdateRole(username, newRole) {
+  try {
+    const response = await fetch('/api/admin/users/update-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, newRole })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Gradul lui ${username} a fost schimbat în ${newRole}!`, "success");
+      loadActiveStaff();
+    } else {
+      showToast(data.message, "error");
+      loadActiveStaff(); // resetează dropdown-ul la starea inițială
+    }
+  } catch (error) {
+    showToast("Eroare la modificarea rolului.", "error");
+  }
+}
+
+async function handleDeleteStaff(username) {
+  if (!confirm(`⚠️ ATENȚIE!\n\nSigur dorești să elimini complet accesul utilizatorului "${username}"?\nAcesta nu se va mai putea conecta pe site.`)) return;
+
+  try {
+    const response = await fetch('/api/admin/users/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Membru staff ${username} eliminat cu succes.`, "info");
+      loadActiveStaff();
+    } else {
+      showToast(data.message, "error");
+    }
+  } catch (error) {
+    showToast("Eroare la eliminarea utilizatorului staff.", "error");
+  }
+}
+
+async function loadLogs() {
+  try {
+    const response = await fetch('/api/admin/logs');
+    const data = await response.json();
+    if (data.success) {
+      renderLogs(data.logs);
+    }
+  } catch (error) {
+    showToast("Eroare la încărcarea logurilor.", "error");
+  }
+}
+
+function renderLogs(logs) {
+  logsTableBody.innerHTML = '';
+  if (logs.length === 0) {
+    logsTableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-dark); padding: 2rem;">Nicio activitate înregistrată.</td></tr>';
+    return;
+  }
+
+  logs.forEach(log => {
+    const tr = document.createElement('tr');
+    
+    // Format timestamp in Romanian locale
+    const date = new Date(log.timestamp);
+    const dateStr = date.toLocaleString('ro-RO', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    tr.innerHTML = `
+      <td style="color: var(--text-dark);">${dateStr}</td>
+      <td>
+        <strong style="color: var(--text-light);">${log.fullName}</strong> 
+        <span style="font-size: 0.75rem; color: var(--primary);">(@${log.username})</span>
+      </td>
+      <td style="color: var(--text-muted); font-size: 0.85rem;">${log.action}</td>
+    `;
+    logsTableBody.appendChild(tr);
+  });
+}
+
+// ==========================================
+// SECTIUNE GESTIUNE APLICATII (ADMIN)
+// ==========================================
+let currentApplicationsList = [];
+let currentAppStatuses = { police: true, smurd: true, staff: true, gang: true };
+
+function setupApplicationsTabEventListeners() {
+  const types = ['smurd', 'police', 'staff', 'gang'];
+  types.forEach(type => {
+    const btn = document.getElementById(`toggleBtn-${type}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        const currentIsOpen = currentAppStatuses[type];
+        toggleAppStatus(type, currentIsOpen);
+      });
+    }
+  });
+
+  if (closeAppDetailBtn) {
+    closeAppDetailBtn.addEventListener('click', () => {
+      appDetailModal.classList.remove('active');
+    });
+  }
+}
+
+async function loadApplicationsPanel() {
+  await loadAppStatuses();
+  await loadPendingApplications();
+  await loadApplicationLogs();
+}
+
+async function loadAppStatuses() {
   try {
     const response = await fetch('/api/applications/status');
     const data = await response.json();
-    
-    if (!data.success || !data.status) {
-      showToast("Eroare la obținerea statusului aplicațiilor.", "error");
-      return;
-    }
+    if (data.success && data.status) {
+      currentAppStatuses = data.status;
+      const types = ['smurd', 'police', 'staff', 'gang'];
+      types.forEach(type => {
+        const isOpen = currentAppStatuses[type];
+        const badge = document.getElementById(`statusBadge-${type}`);
+        const btn = document.getElementById(`toggleBtn-${type}`);
 
-    const isOpen = data.status[type];
-    if (!isOpen) {
-      let friendlyName = '';
-      if (type === 'smurd') friendlyName = 'SMURD';
-      else if (type === 'police') friendlyName = 'Poliție (PD)';
-      else if (type === 'staff') friendlyName = 'Staff Server';
-      else if (type === 'gang') friendlyName = 'Grupare Infracțională (Gang/Mafie)';
-
-      rulesContainer.innerHTML = `
-        <div class="rules-empty-state" style="padding: 4rem 2rem;">
-          <h2 style="color: var(--text-light); font-family: 'Outfit', sans-serif; font-size: 1.8rem; margin-bottom: 1rem;">Aplicații ${friendlyName}</h2>
-          <div style="display: inline-block; padding: 2rem; border-radius: 12px; background: rgba(226, 27, 60, 0.05); border: 1px solid var(--primary); text-align: center; max-width: 500px; margin-top: 1rem; box-shadow: var(--shadow-neon);">
-            <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">🚫</span>
-            <span style="font-size: 1.1rem; color: var(--text-light); font-weight: 600; display: block;">Momentan aplicațiile sunt închise.</span>
-            <span style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 0.5rem;">Te rugăm să revii mai târziu sau să urmărești anunțurile oficiale de pe Discord.</span>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    // Preluare întrebări dinamice de pe server
-    const qResponse = await fetch(`/api/applications/questions?type=${type}`);
-    const qData = await qResponse.json();
-    if (!qData.success || !qData.questions) {
-      showToast("Eroare la obținerea întrebărilor formularului.", "error");
-      return;
-    }
-
-    renderDynamicForm(type, qData.questions);
-
-  } catch (error) {
-    console.error("Eroare formular:", error);
-    showToast("Eroare tehnică la încărcarea formularului.", "error");
-  }
-}
-
-function renderDynamicForm(type, questions) {
-  let friendlyName = '';
-  if (type === 'smurd') friendlyName = 'Departament SMURD';
-  else if (type === 'police') friendlyName = 'Departament Poliție (PD)';
-  else if (type === 'staff') friendlyName = 'Staff Server';
-  else if (type === 'gang') friendlyName = 'Grupare Infracțională (Gang/Mafie)';
-
-  let formHtml = `<form id="appSubmitForm">`;
-
-  // Pentru Poliție, redăm titlu specific OOC ca design inițial
-  if (type === 'police') {
-    formHtml += `
-      <h3 style="color: var(--primary); margin: 0 0 1.25rem 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Secțiunea Out-Of-Character (OOC)
-      </h3>
-    `;
-  }
-
-  questions.forEach(q => {
-    formHtml += `
-      <div class="form-group" style="margin-bottom: 1.5rem;">
-        <label class="form-label" for="${q.id}" style="margin-bottom: 0.5rem; display: block; font-weight: 600;">${q.label}</label>
-    `;
-
-    if (q.type === 'text') {
-      formHtml += `<input type="text" class="form-input" id="${q.id}" ${q.required ? 'required' : ''} placeholder="${q.placeholder || ''}">`;
-    } else if (q.type === 'number') {
-      formHtml += `<input type="number" class="form-input" id="${q.id}" ${q.required ? 'required' : ''} placeholder="${q.placeholder || ''}">`;
-    } else if (q.type === 'textarea') {
-      formHtml += `<textarea class="form-input" id="${q.id}" rows="4" ${q.required ? 'required' : ''} placeholder="${q.placeholder || ''}"></textarea>`;
-    } else if (q.type === 'radio') {
-      formHtml += `<div class="radio-group-premium">`;
-      (q.options || ["DA", "NU"]).forEach(opt => {
-        formHtml += `
-          <label class="radio-tile">
-            <input type="radio" name="${q.id}" value="${opt}" ${q.required ? 'required' : ''}>
-            <span class="radio-tile-label">${opt}</span>
-          </label>
-        `;
-      });
-      formHtml += `</div>`;
-    } else if (q.type === 'file') {
-      formHtml += `
-        <div class="file-upload-wrapper">
-          <input type="file" id="${q.id}" accept="image/*" style="display: none;" ${q.required ? 'required' : ''}>
-          <button type="button" class="btn-secondary file-upload-btn" onclick="document.getElementById('${q.id}').click()" style="padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Selectează Imaginea (Max 2MB)
-          </button>
-          <div class="file-preview-name" id="previewName_${q.id}" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--accent-green); display: none; font-weight: 600;"></div>
-        </div>
-      `;
-    }
-
-    formHtml += `</div>`;
-  });
-
-  formHtml += `
-      <button type="submit" class="btn-primary" style="justify-content: center; width: 100%; margin-top: 2rem; padding: 0.9rem; font-size: 1rem; font-weight: bold; border-radius: 8px;">Trimite Aplicația</button>
-    </form>
-  `;
-
-  rulesContainer.innerHTML = `
-    <div class="form-container" style="padding: 2.5rem; border-radius: 16px; background: var(--bg-surface); border: 1px solid var(--border-light); box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 800px; margin: 0 auto;">
-      <h2 style="color: var(--text-light); font-family: 'Outfit', sans-serif; font-size: 1.6rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        ${friendlyName}
-      </h2>
-      ${formHtml}
-    </div>
-  `;
-
-  // Adaugă file handlers dinamic pentru câmpurile file upload
-  questions.forEach(q => {
-    if (q.type === 'file') {
-      const fileInput = document.getElementById(q.id);
-      const previewName = document.getElementById(`previewName_${q.id}`);
-      if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
-          const file = e.target.files[0];
-          if (file) {
-            if (file.size > 2 * 1024 * 1024) {
-              showToast("Imaginea depășește limita de 2MB!", "error");
-              fileInput.value = '';
-              return;
-            }
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              fileInput.dataset.base64 = event.target.result;
-              previewName.textContent = `Poză selectată: ${file.name}`;
-              previewName.style.display = 'block';
-              showToast("Poză încărcată!", "success");
-            };
-            reader.readAsDataURL(file);
-          }
-        });
-      }
-    }
-  });
-
-  // Listener submit dinamic
-  const submitForm = document.getElementById('appSubmitForm');
-  submitForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const formData = {};
-    let allOk = true;
-
-    // Colectează valorile în funcție de tipul întrebării
-    for (const q of questions) {
-      if (q.type === 'radio') {
-        const checkedRadio = submitForm.querySelector(`input[name="${q.id}"]:checked`);
-        formData[q.id] = checkedRadio ? checkedRadio.value : '';
-      } else if (q.type === 'file') {
-        const fileInput = document.getElementById(q.id);
-        const base64Data = fileInput ? (fileInput.dataset.base64 || '') : '';
-        if (q.required && !base64Data) {
-          showToast(`Te rugăm să încarci fișierul solicitat la întrebarea: ${q.label}`, "error");
-          allOk = false;
-          break;
+        if (badge) {
+          badge.textContent = isOpen ? "DESCHISE" : "ÎNCHISE";
+          badge.className = isOpen ? "badge badge-fine" : "badge badge-warn";
         }
-        formData[q.id] = base64Data;
-      } else {
-        const inputEl = document.getElementById(q.id);
-        formData[q.id] = inputEl ? inputEl.value : '';
-      }
-    }
 
-    if (allOk) {
-      submitDynamicApplication(type, formData);
+        if (btn) {
+          btn.textContent = isOpen ? "Oprește (STOP)" : "Pornește (START)";
+          btn.className = isOpen ? "action-badge-btn delete" : "action-badge-btn approve";
+          
+          // Permisiuni buton toggle (doar Testeri dedicati sau Admin/Manager)
+          const hasAccess = canProcessAppType(currentUser.role, type);
+          btn.disabled = !hasAccess;
+          if (!hasAccess) {
+            btn.style.opacity = '0.3';
+            btn.style.cursor = 'not-allowed';
+          } else {
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+          }
+        }
+      });
     }
-  });
+  } catch (error) {
+    console.error("Eroare incarcare status aplicatii:", error);
+  }
 }
 
-async function submitDynamicApplication(type, formData) {
+async function toggleAppStatus(type, currentIsOpen) {
   try {
-    const submitBtn = document.querySelector('#appSubmitForm button[type="submit"]');
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Se trimite...';
-    }
-
-    const response = await fetch('/api/applications/submit', {
+    const response = await fetch('/api/admin/applications/toggle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, formData })
+      body: JSON.stringify({ type, isOpen: !currentIsOpen })
+    });
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Aplicațiile pentru ${type.toUpperCase()} au fost ${!currentIsOpen ? 'deschise' : 'închise'}.`, "success");
+      loadAppStatuses();
+    } else {
+      showToast(data.message, "error");
+    }
+  } catch (error) {
+    showToast("Eroare la schimbarea statusului aplicațiilor.", "error");
+  }
+}
+
+async function loadPendingApplications() {
+  try {
+    const response = await fetch('/api/admin/applications');
+    const data = await response.json();
+    if (data.success && data.applications) {
+      currentApplicationsList = data.applications;
+      renderApplicationsTable(data.applications);
+    }
+  } catch (error) {
+    showToast("Eroare la încărcarea aplicațiilor.", "error");
+  }
+}
+
+function renderApplicationsTable(apps) {
+  applicationsTableBody.innerHTML = '';
+  
+  // Filtrare aplicatii pe baza rolului
+  const filteredApps = apps.filter(app => {
+    if (currentUser.role === 'manager' || currentUser.role === 'admin') return true;
+    if (currentUser.role === 'tester-pd' && app.type === 'police') return true;
+    if (currentUser.role === 'tester-smurd' && app.type === 'smurd') return true;
+    if (currentUser.role === 'tester-staff' && app.type === 'staff') return true;
+    if (currentUser.role === 'manager-mafii' && app.type === 'gang') return true;
+    return false;
+  });
+
+  // Arată doar cele "pending" în acest tabel principal
+  const pendingApps = filteredApps.filter(app => app.status === 'pending');
+
+  if (pendingApps.length === 0) {
+    applicationsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dark); padding: 2rem;">Nicio aplicație în așteptare pentru specializarea ta.</td></tr>';
+    return;
+  }
+
+  pendingApps.forEach(app => {
+    const tr = document.createElement('tr');
+    
+    // Nume candidat
+    let candidateName = "Jucător";
+    const type = app.type;
+    const formData = app.formData;
+    if (type === 'police' && formData.numeOoc) candidateName = formData.numeOoc;
+    else if (type === 'smurd' && formData.idJoc) candidateName = `ID: ${formData.idJoc}`;
+    else if (type === 'staff' && formData.numeVarsta) candidateName = formData.numeVarsta;
+    else if (type === 'gang' && formData.numeOoc) candidateName = formData.numeOoc;
+
+    const dateStr = new Date(app.submittedAt).toLocaleDateString('ro-RO', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    let friendlyType = '';
+    if (type === 'smurd') friendlyType = 'SMURD';
+    else if (type === 'police') friendlyType = 'Poliție';
+    else if (type === 'staff') friendlyType = 'Staff';
+    else if (type === 'gang') friendlyType = 'Gang/Mafie';
+
+    tr.innerHTML = `
+      <td><strong style="color: var(--text-light);">${friendlyType}</strong></td>
+      <td>${candidateName}</td>
+      <td style="color: var(--text-dark);">${dateStr}</td>
+      <td><span class="badge badge-warn">ÎN CURS</span></td>
+      <td style="text-align: right;">
+        <button class="action-badge-btn info" data-id="${app.id}">Vizualizează</button>
+      </td>
+    `;
+
+    tr.querySelector('.info').addEventListener('click', () => {
+      viewApplicationDetails(app.id);
+    });
+
+    applicationsTableBody.appendChild(tr);
+  });
+}
+
+function viewApplicationDetails(appId) {
+  const app = currentApplicationsList.find(a => a.id === appId);
+  if (!app) return;
+
+  const type = app.type;
+  const formData = app.formData || {};
+  
+  let friendlyType = '';
+  if (type === 'smurd') friendlyType = 'SMURD';
+  else if (type === 'police') friendlyType = 'Poliție';
+  else if (type === 'staff') friendlyType = 'Staff';
+  else if (type === 'gang') friendlyType = 'Gang/Mafie';
+
+  detailAppTitle.textContent = `Aplicație ${friendlyType} - Detalii Completate`;
+  detailAppContent.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Se încarcă detaliile aplicației...</div>';
+
+  // Verificare permisiuni procesare aplicatie
+  const isPending = app.status === 'pending';
+  const hasProcessingAccess = canProcessAppType(currentUser.role, type);
+
+  detailAppActions.innerHTML = '';
+  if (isPending && hasProcessingAccess) {
+    detailAppActions.innerHTML = `
+      <button class="action-badge-btn delete" id="btnRejectApp" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">Respinge Aplicația</button>
+      <button class="action-badge-btn approve" id="btnAcceptApp" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">Acceptă Aplicația</button>
+    `;
+
+    document.getElementById('btnAcceptApp').addEventListener('click', () => {
+      if (confirm(`Sigur dorești să ACCEPȚI această aplicație?`)) {
+        processApp(appId, 'accepted');
+      }
+    });
+
+    document.getElementById('btnRejectApp').addEventListener('click', () => {
+      const reason = prompt("Te rugăm să introduci MOTIVUL RESPINGERII:");
+      if (reason === null) return;
+      if (!reason.trim()) {
+        showToast("Trebuie să specifici un motiv pentru respingere!", "error");
+        return;
+      }
+      processApp(appId, 'rejected', reason.trim());
+    });
+  } else {
+    detailAppActions.innerHTML = `
+      <span style="color: var(--text-dark); font-size: 0.85rem; font-style: italic;">
+        ${!isPending ? `Procesată deja de ${app.processedByName || app.processedBy}` : 'Nu ai drepturi pentru a aproba/respinge această categorie.'}
+      </span>
+    `;
+  }
+
+  appDetailModal.classList.add('active');
+
+  // Preia întrebările în timp real de pe server
+  fetch(`/api/applications/questions?type=${type}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.questions) {
+        const questions = data.questions;
+        let detailsHtml = '<div style="display: flex; flex-direction: column; gap: 1.25rem;">';
+
+        questions.forEach((q) => {
+          const answerVal = formData[q.id];
+          const displayVal = answerVal !== undefined && answerVal !== '' ? answerVal : '<span style="font-style: italic; color: var(--text-dark);">Fără răspuns</span>';
+
+          if (q.type === 'file') {
+            detailsHtml += `
+              <div class="detail-field">
+                <strong style="color: var(--primary); display: block; margin-bottom: 0.5rem;">${q.label}</strong>
+                <div style="text-align: center; margin-top: 0.5rem;">
+                  ${answerVal ? `<img src="${answerVal}" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border-light); box-shadow: var(--shadow-neon);"/>` : '<span style="font-style:italic; color:var(--text-dark);">Fără imagine.</span>'}
+                </div>
+              </div>
+            `;
+          } else if (q.type === 'textarea') {
+            detailsHtml += `
+              <div class="detail-field">
+                <strong style="color: var(--primary); display: block; margin-bottom: 0.25rem;">${q.label}</strong>
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-light); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-light); line-height: 1.5; white-space: pre-wrap;">${displayVal}</div>
+              </div>
+            `;
+          } else {
+            detailsHtml += `
+              <div class="detail-field">
+                <strong style="color: var(--primary);">${q.label}:</strong>
+                <span style="color: var(--text-light); margin-left: 0.5rem;">${displayVal}</span>
+              </div>
+            `;
+          }
+        });
+
+        detailsHtml += '</div>';
+        detailAppContent.innerHTML = detailsHtml;
+      } else {
+        detailAppContent.innerHTML = '<div style="color: var(--primary); padding: 1rem; text-align: center;">Eroare la încărcarea structurii întrebărilor.</div>';
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      detailAppContent.innerHTML = '<div style="color: var(--primary); padding: 1rem; text-align: center;">Eroare de rețea la încărcarea structurii.</div>';
+    });
+}
+
+async function processApp(appId, status, reason = '') {
+  try {
+    const response = await fetch('/api/admin/applications/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appId, status, reason })
+    });
+    const data = await response.json();
+    if (data.success) {
+      showToast(`Aplicația a fost ${status === 'accepted' ? 'acceptată' : 'respinsă'} cu succes!`, "success");
+      appDetailModal.classList.remove('active');
+      loadApplicationsPanel();
+    } else {
+      showToast(data.message, "error");
+    }
+  } catch (error) {
+    showToast("Eroare la procesarea aplicației.", "error");
+  }
+}
+
+async function loadApplicationLogs() {
+  try {
+    const response = await fetch('/api/admin/applications/logs');
+    const data = await response.json();
+    if (data.success && data.logs) {
+      renderApplicationLogsTable(data.logs);
+    }
+  } catch (error) {
+    console.error("Eroare loguri aplicatii:", error);
+  }
+}
+
+function renderApplicationLogsTable(logs) {
+  appLogsTableBody.innerHTML = '';
+  
+  // Filtrare loguri pe baza rolului
+  const filteredLogs = logs.filter(log => {
+    if (currentUser.role === 'manager' || currentUser.role === 'admin') return true;
+    if (currentUser.role === 'tester-pd' && log.appType === 'police') return true;
+    if (currentUser.role === 'tester-smurd' && log.appType === 'smurd') return true;
+    if (currentUser.role === 'tester-staff' && log.appType === 'staff') return true;
+    if (currentUser.role === 'manager-mafii' && log.appType === 'gang') return true;
+    return false;
+  });
+
+  const processedLogs = filteredLogs.filter(log => log.status !== 'pending');
+
+  if (processedLogs.length === 0) {
+    appLogsTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-dark); padding: 2rem;">Nicio decizie înregistrată încă.</td></tr>';
+    return;
+  }
+
+  processedLogs.forEach(log => {
+    const tr = document.createElement('tr');
+    const date = new Date(log.timestamp);
+    const dateStr = date.toLocaleString('ro-RO', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    let friendlyType = '';
+    if (log.appType === 'smurd') friendlyType = 'SMURD';
+    else if (log.appType === 'police') friendlyType = 'Poliție';
+    else if (log.appType === 'staff') friendlyType = 'Staff';
+    else if (log.appType === 'gang') friendlyType = 'Gang/Mafie';
+
+    const statusBadge = log.status === 'accepted' 
+      ? '<span class="badge badge-fine">ACCEPTAT</span>' 
+      : '<span class="badge badge-warn">RESPINS</span>';
+
+    tr.innerHTML = `
+      <td style="color: var(--text-dark);">${dateStr}</td>
+      <td><strong style="color: var(--text-light);">${friendlyType}</strong></td>
+      <td>${log.applicantName}</td>
+      <td>${statusBadge}</td>
+      <td><strong style="color: var(--text-light);">${log.processedBy}</strong></td>
+      <td style="color: var(--text-muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">
+        ${log.reason || ''}
+      </td>
+    `;
+    appLogsTableBody.appendChild(tr);
+  });
+}
+
+function canProcessAppType(userRole, appType) {
+  if (userRole === 'manager' || userRole === 'admin') return true;
+  if (userRole === 'tester-pd' && appType === 'police') return true;
+  if (userRole === 'tester-smurd' && appType === 'smurd') return true;
+  if (userRole === 'tester-staff' && appType === 'staff') return true;
+  if (userRole === 'manager-mafii' && appType === 'gang') return true;
+  return false;
+}
+
+// ==========================================
+// SECTIUNE GESTIUNE ÎNTREBĂRI FORMULARE
+// ==========================================
+let currentQuestionsList = [];
+
+async function loadQuestionsEditor() {
+  const type = document.getElementById('questionFormSelect').value;
+  const container = document.getElementById('questionsListContainer');
+  container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Se încarcă întrebările...</div>';
+
+  try {
+    const response = await fetch(`/api/applications/questions?type=${type}`);
+    const data = await response.json();
+    
+    if (data.success && data.questions) {
+      currentQuestionsList = data.questions;
+      renderQuestionsList();
+    } else {
+      showToast(data.message || "Eroare la încărcarea întrebărilor.", "error");
+    }
+  } catch (error) {
+    showToast("Eroare de rețea la încărcarea întrebărilor.", "error");
+  }
+}
+
+function renderQuestionsList() {
+  const container = document.getElementById('questionsListContainer');
+  container.innerHTML = '';
+
+  if (currentQuestionsList.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Nicio întrebare definită. Adaugă una folosind butonul de mai jos.</div>';
+    return;
+  }
+
+  currentQuestionsList.forEach((q, index) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.dataset.index = index;
+
+    // Generăm elementul de opțiuni dacă e tip radio
+    let optionsHtml = '';
+    if (q.type === 'radio') {
+      const optsStr = (q.options || []).join(', ');
+      optionsHtml = `
+        <div class="form-group" style="grid-column: span 3; margin-top: 0.5rem;">
+          <label class="form-label" style="font-size: 0.8rem;">Opțiuni Radio (separate prin virgulă)</label>
+          <input type="text" class="form-input q-options" value="${optsStr}" placeholder="Ex: DA, NU, POATE">
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="question-card-header">
+        <span class="question-index-badge">Întrebarea #${index + 1}</span>
+        <div class="question-card-actions">
+          <button class="action-badge-btn" onclick="moveQuestion(${index}, -1)" ${index === 0 ? 'disabled' : ''} style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">▲ Sus</button>
+          <button class="action-badge-btn" onclick="moveQuestion(${index}, 1)" ${index === currentQuestionsList.length - 1 ? 'disabled' : ''} style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">▼ Jos</button>
+          <button class="action-badge-btn reject" onclick="deleteQuestion(${index})" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">❌ Șterge</button>
+        </div>
+      </div>
+      <div class="question-card-body">
+        <div class="form-group">
+          <label class="form-label" style="font-size: 0.8rem;">Text Întrebare (Label)</label>
+          <input type="text" class="form-input q-label" value="${q.label || ''}" required placeholder="Ex: Câți ani ai?">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size: 0.8rem;">Tip Câmp</label>
+          <select class="form-select q-type" onchange="onQuestionTypeChange(${index}, this.value)" style="padding: 0.45rem;">
+            <option value="text" ${q.type === 'text' ? 'selected' : ''}>Text Scurt</option>
+            <option value="number" ${q.type === 'number' ? 'selected' : ''}>Număr (Cifre)</option>
+            <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>Text Lung</option>
+            <option value="radio" ${q.type === 'radio' ? 'selected' : ''}>Butoane Radio (Alegere)</option>
+            <option value="file" ${q.type === 'file' ? 'selected' : ''}>Încărcare Poză / Fișier</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size: 0.8rem;">Placeholder / Sugestie</label>
+          <input type="text" class="form-input q-placeholder" value="${q.placeholder || ''}" placeholder="Ex: Scrie vârsta reală">
+        </div>
+        ${optionsHtml}
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+function onQuestionTypeChange(index, newType) {
+  syncQuestionsStateFromDOM();
+  currentQuestionsList[index].type = newType;
+  if (newType === 'radio' && (!currentQuestionsList[index].options || currentQuestionsList[index].options.length === 0)) {
+    currentQuestionsList[index].options = ["DA", "NU"];
+  }
+  renderQuestionsList();
+}
+
+function addNewQuestionRow() {
+  syncQuestionsStateFromDOM();
+  const newId = `q_dyn_${Date.now()}`;
+  currentQuestionsList.push({
+    id: newId,
+    type: 'text',
+    label: 'Întrebare nouă',
+    required: true,
+    placeholder: ''
+  });
+  renderQuestionsList();
+  showToast("Întrebare adăugată la sfârșitul listei.", "success");
+}
+
+function deleteQuestion(index) {
+  syncQuestionsStateFromDOM();
+  currentQuestionsList.splice(index, 1);
+  renderQuestionsList();
+  showToast("Întrebare ștearsă.", "info");
+}
+
+function moveQuestion(index, direction) {
+  syncQuestionsStateFromDOM();
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= currentQuestionsList.length) return;
+
+  const temp = currentQuestionsList[index];
+  currentQuestionsList[index] = currentQuestionsList[targetIndex];
+  currentQuestionsList[targetIndex] = temp;
+
+  renderQuestionsList();
+}
+
+function syncQuestionsStateFromDOM() {
+  const cards = document.querySelectorAll('#questionsListContainer .question-card');
+  cards.forEach(card => {
+    const idx = parseInt(card.dataset.index, 10);
+    if (isNaN(idx) || !currentQuestionsList[idx]) return;
+
+    const labelInput = card.querySelector('.q-label');
+    const placeholderInput = card.querySelector('.q-placeholder');
+    const typeSelect = card.querySelector('.q-type');
+
+    if (labelInput) currentQuestionsList[idx].label = labelInput.value;
+    if (placeholderInput) currentQuestionsList[idx].placeholder = placeholderInput.value;
+    if (typeSelect) currentQuestionsList[idx].type = typeSelect.value;
+
+    if (currentQuestionsList[idx].type === 'radio') {
+      const optionsInput = card.querySelector('.q-options');
+      if (optionsInput) {
+        currentQuestionsList[idx].options = optionsInput.value
+          .split(',')
+          .map(opt => opt.trim())
+          .filter(opt => opt.length > 0);
+      }
+    }
+  });
+}
+
+async function saveQuestions() {
+  syncQuestionsStateFromDOM();
+  const type = document.getElementById('questionFormSelect').value;
+  const saveBtn = document.getElementById('saveQuestionsBtn');
+
+  try {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Se salvează...';
+
+    const response = await fetch('/api/admin/questions/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type,
+        questions: currentQuestionsList
+      })
     });
 
     const data = await response.json();
     if (data.success) {
-      if (data.application && data.application.id) {
-        localStorage.setItem(`pending_app_${type}`, data.application.id);
-      }
-      showToast("Aplicația ta a fost înregistrată cu succes!", "success");
-      rulesContainer.innerHTML = `
-        <div class="rules-empty-state" style="padding: 4rem 2rem;">
-          <div style="font-size: 3.5rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 10px rgba(0, 230, 118, 0.25));">✅</div>
-          <h2 style="color: var(--text-light); font-family: 'Outfit', sans-serif; font-size: 1.8rem; margin-bottom: 1rem;">Aplicație Trimisă!</h2>
-          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem auto; line-height: 1.6;">
-            Formularul tău a fost înregistrat. Un membru staff din echipa corespunzătoare o va examina în cel mai scurt timp.
-          </p>
-          <button class="btn-primary" onclick="switchCategory('general')" style="margin: 0 auto;">Înapoi la Regulamente</button>
-        </div>
-      `;
+      showToast("Toate întrebările au fost salvate cu succes!", "success");
+      loadQuestionsEditor();
     } else {
-      showToast(data.message, "error");
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Trimite din nou';
-      }
+      showToast(data.message || "Eroare la salvarea întrebărilor.", "error");
     }
   } catch (err) {
-    showToast("Eroare la trimiterea formularului.", "error");
-    const submitBtn = document.querySelector('#appSubmitForm button[type="submit"]');
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Trimite din nou';
-    }
+    showToast("Eroare de rețea la salvarea întrebărilor.", "error");
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Salvează Toate Întrebările';
   }
 }
