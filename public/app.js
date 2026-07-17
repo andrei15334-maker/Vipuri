@@ -180,173 +180,128 @@ function switchCategory(categoryKey) {
 
   // 2. Randează Textul Regulamentului
   renderRulesText(categoryData);
-
-  // 3. Reinițializează Scrollspy
-  initScrollspy();
 }
 
 function renderSidebar(categoryData) {
   chaptersList.innerHTML = '';
-  
-  categoryData.chapters.forEach((chapter, index) => {
-    const li = document.createElement('li');
-    li.className = `chapter-item ${index === 0 ? 'expanded' : ''}`;
-    
-    const chapterBtn = document.createElement('button');
-    chapterBtn.className = `chapter-btn ${index === 0 ? 'active' : ''}`;
-    chapterBtn.dataset.target = chapter.id;
-    chapterBtn.innerHTML = `
-      <span>${chapter.title}</span>
-      <svg class="chapter-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
-    `;
-
-    // Click pe capitol -> expandează/colapsează subcapitole și navighează la capitol
-    chapterBtn.addEventListener('click', (e) => {
-      // Toggle expanded class pe elementul părinte li
-      const parent = chapterBtn.closest('.chapter-item');
-      
-      // Colapsează celelalte capitole (opțional, dar arată mai curat)
-      document.querySelectorAll('.chapter-item').forEach(item => {
-        if (item !== parent) item.classList.remove('expanded');
-      });
-      parent.classList.toggle('expanded');
-
-      // Scroll smooth la capitol
-      const targetEl = document.getElementById(chapter.id);
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth' });
-      }
-
-      // Setează clasa active
-      document.querySelectorAll('.chapter-btn').forEach(btn => btn.classList.remove('active'));
-      chapterBtn.classList.add('active');
-    });
-
-    const subList = document.createElement('ul');
-    subList.className = 'subchapters-list';
-    
-    chapter.subchapters.forEach(sub => {
-      const subLi = document.createElement('li');
-      const subLink = document.createElement('a');
-      subLink.className = 'subchapter-link';
-      subLink.href = `#${sub.id}`;
-      subLink.textContent = sub.title;
-      
-      // Click pe subcapitol -> navighează fin
-      subLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const targetEl = document.getElementById(sub.id);
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth' });
-          // Scurtă animație pulsatorie pe fundalul textului
-          targetEl.classList.add('highlighted-pulse');
-          setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3000);
-        }
-
-        document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
-        subLink.classList.add('active');
-      });
-
-      subLi.appendChild(subLink);
-      subList.appendChild(subLi);
-    });
-
-    li.appendChild(chapterBtn);
-    li.appendChild(subList);
-    chaptersList.appendChild(li);
-  });
 }
 
 function renderRulesText(categoryData) {
   rulesContainer.innerHTML = '';
 
-  // Render Category Description as a nice intro card if present
-  if (categoryData.description) {
-    const descDiv = document.createElement('div');
-    descDiv.className = 'category-description-panel';
-    descDiv.style.cssText = `
-      background: rgba(226, 27, 60, 0.04);
-      border: 1px solid rgba(226, 27, 60, 0.15);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 32px;
-      font-size: 0.96rem;
-      line-height: 1.65;
-      color: var(--text-light);
-    `;
-    
-    // Split description into paragraphs and render
-    categoryData.description.split('\n\n').forEach(p => {
-      const pEl = document.createElement('p');
-      pEl.style.marginBottom = '0.75rem';
-      pEl.innerHTML = formatRuleText(p);
-      descDiv.appendChild(pEl);
-    });
-    
-    rulesContainer.appendChild(descDiv);
-  }
+  const mainDiv = document.createElement('div');
+  mainDiv.className = 'rules-full-content';
+  mainDiv.style.cssText = `
+    background: var(--bg-surface-solid);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  `;
 
-  if (categoryData.chapters.length === 0) {
+  if (!categoryData.content || categoryData.content.trim() === '') {
     rulesContainer.innerHTML = `
       <div class="rules-empty-state">
         <h3>Regulament gol</h3>
-        <p>Acest regulament nu are capitole adăugate încă.</p>
+        <p>Acest regulament nu are conținut adăugat încă.</p>
       </div>
     `;
+    updateTOC([]);
     return;
   }
 
-  categoryData.chapters.forEach(chapter => {
-    const chapterDiv = document.createElement('div');
-    chapterDiv.className = 'chapter-section';
-    chapterDiv.id = chapter.id;
+  // Parse lines to render markdown titles or paragraph text
+  const lines = categoryData.content.split('\n');
+  const tocItems = [];
+  
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      // Add small spacing for empty lines
+      const spacer = document.createElement('div');
+      spacer.style.height = '1rem';
+      mainDiv.appendChild(spacer);
+      return;
+    }
 
-    const h2 = document.createElement('h2');
-    h2.className = 'chapter-title';
-    h2.textContent = chapter.title;
-    chapterDiv.appendChild(h2);
+    const uniqueId = `rule-line-${idx}`;
 
-    chapter.subchapters.forEach(sub => {
-      const subDiv = document.createElement('div');
-      subDiv.className = 'subchapter-section';
-      subDiv.id = sub.id;
+    if (trimmed.startsWith('### ')) {
+      const titleText = trimmed.substring(4);
+      const h2 = document.createElement('h2');
+      h2.className = 'chapter-title';
+      h2.id = uniqueId;
+      h2.style.cssText = `
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 1.8rem;
+        color: var(--text-light);
+        margin-top: 2.5rem;
+        margin-bottom: 1.25rem;
+        border-bottom: 2px solid var(--primary);
+        padding-bottom: 0.5rem;
+        scroll-margin-top: 110px;
+      `;
+      h2.textContent = titleText;
+      mainDiv.appendChild(h2);
 
+      tocItems.push({ type: 'item', title: titleText, id: uniqueId });
+    } else if (trimmed.startsWith('#### ')) {
+      const titleText = trimmed.substring(5);
       const h3 = document.createElement('h3');
       h3.className = 'subchapter-title';
-      h3.textContent = sub.title;
-      subDiv.appendChild(h3);
+      h3.id = uniqueId;
+      h3.style.cssText = `
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1.3rem;
+        color: var(--primary);
+        margin-top: 1.75rem;
+        margin-bottom: 0.85rem;
+        scroll-margin-top: 110px;
+      `;
+      h3.textContent = titleText;
+      mainDiv.appendChild(h3);
 
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'subchapter-content';
-      
-      // Formatare text cu badge-uri vizuale
-      const paragraphs = sub.content.split('\n').filter(p => p.trim() !== '');
-      paragraphs.forEach(p => {
-        const pEl = document.createElement('p');
-        pEl.style.marginBottom = '0.75rem';
-        pEl.innerHTML = formatRuleText(p);
-        contentDiv.appendChild(pEl);
-      });
+      tocItems.push({ type: 'subitem', title: titleText, id: uniqueId });
+    } else {
+      const pEl = document.createElement('p');
+      pEl.id = uniqueId;
+      pEl.style.cssText = `
+        margin-bottom: 0.85rem;
+        font-size: 1.02rem;
+        line-height: 1.65;
+        color: var(--text-normal);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+        scroll-margin-top: 120px;
+      `;
+      pEl.innerHTML = formatRuleText(trimmed);
+      mainDiv.appendChild(pEl);
 
-      subDiv.appendChild(contentDiv);
-      chapterDiv.appendChild(subDiv);
-    });
-
-    rulesContainer.appendChild(chapterDiv);
+      const cleanText = pEl.textContent.trim();
+      const isRule = cleanText.startsWith('•') || /^[0-9]+(\.[0-9]+)+[:\s]/.test(cleanText);
+      if (isRule) {
+        let ruleName = cleanText.replace(/^•\s*/, '').split(/[-–—:]/)[0].trim();
+        if (ruleName.length > 40) {
+          ruleName = ruleName.substring(0, 37) + '...';
+        }
+        tocItems.push({ type: 'rule', title: ruleName, id: uniqueId });
+      }
+    }
   });
-  
-  // Generează/actualizează cuprinsul pe pagina curentă (dreapta)
-  updateTOC();
+
+  rulesContainer.appendChild(mainDiv);
+  updateTOC(tocItems);
 }
 
-function updateTOC() {
+function updateTOC(tocItems) {
   if (!tocList) return;
   tocList.innerHTML = '';
-  
-  const subchapters = document.querySelectorAll('.subchapter-section');
-  if (subchapters.length === 0) {
+
+  if (tocItems.length === 0) {
     if (tocSidebar) {
       tocSidebar.style.display = 'none';
       const mainContent = document.querySelector('.main-content');
@@ -355,36 +310,43 @@ function updateTOC() {
     return;
   }
 
-  // Afișează sidebar-ul de TOC
   if (tocSidebar) {
     tocSidebar.style.display = 'block';
     const mainContent = document.querySelector('.main-content');
     if (mainContent) mainContent.classList.add('has-toc');
   }
 
-  subchapters.forEach(sub => {
-    const titleEl = sub.querySelector('.subchapter-title');
-    if (!titleEl) return;
-
-    // Adaugă subcapitolul ca link principal
+  tocItems.forEach(item => {
     const li = document.createElement('li');
     const a = document.createElement('a');
-    a.className = 'toc-item';
-    a.href = `#${sub.id}`;
     
-    let shortTitle = titleEl.textContent;
-    if (shortTitle.length > 38) {
-      shortTitle = shortTitle.substring(0, 35) + '...';
+    if (item.type === 'item') {
+      a.className = 'toc-item';
+      let title = item.title;
+      if (title.length > 35) title = title.substring(0, 32) + '...';
+      a.textContent = title;
+    } else if (item.type === 'subitem') {
+      a.className = 'toc-sub-item';
+      a.style.paddingLeft = '1rem';
+      a.style.fontWeight = '600';
+      let title = item.title;
+      if (title.length > 35) title = title.substring(0, 32) + '...';
+      a.textContent = title;
+    } else {
+      a.className = 'toc-sub-item';
+      let title = item.title;
+      a.textContent = `• ${title}`;
     }
-    a.textContent = shortTitle;
+    
+    a.href = `#${item.id}`;
 
     a.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
 
-      const target = document.getElementById(sub.id);
+      const target = document.getElementById(item.id);
       if (target) {
-        const yOffset = -90; 
+        const yOffset = item.type === 'rule' ? -120 : -90;
         const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
         window.scrollTo({ top: y, behavior: 'smooth' });
 
@@ -398,52 +360,9 @@ function updateTOC() {
 
     li.appendChild(a);
     tocList.appendChild(li);
-
-    // Dacă are sub-reguli (bullet points), le adăugăm ca sub-link-uri
-    const paragraphs = sub.querySelectorAll('.subchapter-content p');
-    paragraphs.forEach((p, pIdx) => {
-      const text = p.textContent.trim();
-      if (text.startsWith('•')) {
-        // Generează ID unic pentru paragraf dacă nu are deja
-        if (!p.id) {
-          p.id = `${sub.id}-p-${pIdx}`;
-        }
-
-        // Extragere denumire regulă (până la primul dash sau două puncte)
-        let ruleName = text.replace(/^•\s*/, '').split(/[-–—:]/)[0].trim();
-        if (ruleName.length > 35) {
-          ruleName = ruleName.substring(0, 32) + '...';
-        }
-
-        const subLi = document.createElement('li');
-        const subA = document.createElement('a');
-        subA.className = 'toc-sub-item';
-        subA.href = `#${p.id}`;
-        subA.textContent = ruleName;
-
-        subA.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const target = document.getElementById(p.id);
-          if (target) {
-            const yOffset = -120; // offset mai generos pentru vizibilitate
-            const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
-            window.scrollTo({ top: y, behavior: 'smooth' });
-
-            target.classList.add('highlighted-pulse');
-            setTimeout(() => target.classList.remove('highlighted-pulse'), 3000);
-          }
-
-          document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
-          subA.classList.add('active');
-        });
-
-        subLi.appendChild(subA);
-        tocList.appendChild(subLi);
-      }
-    });
   });
+
+  initScrollspy(tocItems);
 }
 
 // Helper pentru formatare text reguli în badge-uri vizuale
@@ -535,17 +454,16 @@ function formatRuleText(text) {
 // ==========================================
 // SCROLLSPY OBSERVER
 // ==========================================
-function initScrollspy() {
+function initScrollspy(tocItems) {
   if (scrollspyObserver) {
     scrollspyObserver.disconnect();
   }
 
-  const subchapters = document.querySelectorAll('.subchapter-section');
-  if (subchapters.length === 0) return;
+  if (tocItems.length === 0) return;
 
   const options = {
     root: null,
-    rootMargin: '-150px 0px -70% 0px', // ajustat pentru o mai mare precizie la reguli individuale
+    rootMargin: '-100px 0px -70% 0px',
     threshold: 0
   };
 
@@ -553,51 +471,20 @@ function initScrollspy() {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const id = entry.target.id;
-        
-        // Cazul 1: S-a intersectat un paragraf de regulă individual (sub-item în TOC)
-        if (id.includes('-p-')) {
-          const activeTocLink = document.querySelector(`.toc-sub-item[href="#${id}"]`);
-          if (activeTocLink) {
-            document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
-            activeTocLink.classList.add('active');
-          }
-        } 
-        // Cazul 2: S-a intersectat o secțiune mare (subcapitol / capitol)
-        else {
-          // Caută link-ul corespunzător în sidebar (stânga)
-          const activeLink = document.querySelector(`.subchapter-link[href="#${id}"]`);
-          if (activeLink) {
-            document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
-            activeLink.classList.add('active');
-
-            // Caută butonul capitolului părinte și extinde-l
-            const chapterItem = activeLink.closest('.chapter-item');
-            if (chapterItem) {
-              document.querySelectorAll('.chapter-btn').forEach(btn => btn.classList.remove('active'));
-              chapterItem.querySelector('.chapter-btn').classList.add('active');
-              
-              if (!chapterItem.classList.contains('expanded')) {
-                document.querySelectorAll('.chapter-item').forEach(item => {
-                  if (item !== chapterItem) item.classList.remove('expanded');
-                });
-                chapterItem.classList.add('expanded');
-              }
-            }
-          }
-
-          // Caută și activează link-ul corespunzător în TOC (dreapta)
-          const activeTocLink = document.querySelector(`.toc-item[href="#${id}"]`);
-          if (activeTocLink) {
-            document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
-            activeTocLink.classList.add('active');
-          }
+        const activeLink = document.querySelector(`.toc-sidebar a[href="#${id}"]`);
+        if (activeLink) {
+          document.querySelectorAll('.toc-item, .toc-sub-item').forEach(link => link.classList.remove('active'));
+          activeLink.classList.add('active');
+          activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
       }
     });
   }, options);
 
-  // Observăm capitolele mari și fiecare regulă individuală în parte pentru sincronizare fină
-  subchapters.forEach(sec => scrollspyObserver.observe(sec));
+  tocItems.forEach(item => {
+    const targetEl = document.getElementById(item.id);
+    if (targetEl) scrollspyObserver.observe(targetEl);
+  });
 }
 
 // ==========================================
@@ -613,61 +500,42 @@ rulesSearch.addEventListener('input', (e) => {
 
   const results = [];
 
-  // Parcurgere toate categoriile, capitolele și subcapitolele pentru indexare
+  // Parcurgere toate categoriile
   Object.keys(allRulesData).forEach(catKey => {
     const category = allRulesData[catKey];
-    category.chapters.forEach(chapter => {
-      chapter.subchapters.forEach(sub => {
-        // Împărțim textul pe paragrafe pentru a permite căutarea de reguli individuale
-        const paragraphs = sub.content.split('\n').filter(p => p.trim() !== '');
+    if (!category.content) return;
+
+    // Împărțim textul pe linii pentru a permite căutarea de reguli individuale
+    const paragraphs = category.content.split('\n').filter(p => p.trim() !== '');
+    
+    paragraphs.forEach(pText => {
+      if (pText.startsWith('###') || pText.startsWith('####')) return;
+
+      const normalizedPText = pText.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const normalizedQuery = query.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      if (normalizedPText.includes(normalizedQuery)) {
+        const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+        let highlightedText = pText.replace(regex, '<mark>$1</mark>');
         
-        paragraphs.forEach(pText => {
-          // Normalizare text (eliminare cratime, spații etc.) pentru a permite căutarea de tip metagaming -> Meta-Gaming
-          const normalizedPText = pText.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const normalizedQuery = query.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-          if (normalizedPText.includes(normalizedQuery)) {
-            const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-            let highlightedText = pText.replace(regex, '<mark>$1</mark>');
-            
-            // Fallback pentru highlight dacă există cratime/separatori diferiți
-            if (highlightedText === pText) {
-              const queryParts = query.split(/[^a-z0-9]+/i).filter(part => part.length >= 2);
-              queryParts.forEach(part => {
-                const partRegex = new RegExp(`(${escapeRegExp(part)})`, 'gi');
-                highlightedText = highlightedText.replace(partRegex, '<mark>$1</mark>');
-              });
-            }
-
-            results.push({
-              categoryKey: catKey,
-              categoryName: category.title,
-              chapterId: chapter.id,
-              subchapterId: sub.id,
-              subchapterTitle: sub.title,
-              pText: pText,
-              snippet: highlightedText
-            });
-          }
-        });
-
-        // Potrivire pe titlu de capitol (ca fallback secundar)
-        if (sub.title.toLowerCase().includes(query) && !sub.content.toLowerCase().includes(query)) {
-          results.push({
-            categoryKey: catKey,
-            categoryName: category.title,
-            chapterId: chapter.id,
-            subchapterId: sub.id,
-            subchapterTitle: sub.title,
-            pText: null,
-            snippet: sub.content.substring(0, 100) + '...'
+        if (highlightedText === pText) {
+          const queryParts = query.split(/[^a-z0-9]+/i).filter(part => part.length >= 2);
+          queryParts.forEach(part => {
+            const partRegex = new RegExp(`(${escapeRegExp(part)})`, 'gi');
+            highlightedText = highlightedText.replace(partRegex, '<mark>$1</mark>');
           });
         }
-      });
+
+        results.push({
+          categoryKey: catKey,
+          categoryName: category.title,
+          pText: pText,
+          snippet: highlightedText
+        });
+      }
     });
   });
 
-  // Randare rezultate
   renderSearchResults(results, query);
 });
 
@@ -689,7 +557,7 @@ function renderSearchResults(results, query) {
       const div = document.createElement('div');
       div.className = 'search-result-item';
       div.innerHTML = `
-        <div class="search-result-path">${res.categoryName} &rsaquo; ${res.subchapterTitle}</div>
+        <div class="search-result-path">${res.categoryName}</div>
         <div class="search-result-snippet">${res.snippet}</div>
       `;
 
@@ -708,64 +576,28 @@ function renderSearchResults(results, query) {
           }
         }
 
-        // Salt la subcapitol sau paragraf cu scroll și expandare
+        // Salt la paragraf cu scroll
         setTimeout(() => {
-          const targetEl = document.getElementById(res.subchapterId);
-          if (targetEl) {
-            if (res.pText) {
-              // Căutăm exact paragraful care conține textul regulii
-              const paragraphs = targetEl.querySelectorAll('.subchapter-content p');
-              let foundParagraph = null;
-              
-              // Curățăm textul pentru a asigura potrivirea în ciuda caracterelor bullet sau HTML
-              const cleanSearchText = res.pText.replace(/^[•\s\-\*]+/g, '').trim();
-              
-              for (const p of paragraphs) {
-                if (p.textContent.includes(cleanSearchText)) {
-                  foundParagraph = p;
-                  break;
-                }
-              }
-              
-              if (foundParagraph) {
-                // Scroll la paragraful exact
-                const yOffset = -120;
-                const y = foundParagraph.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                window.scrollTo({ top: y, behavior: 'smooth' });
-                
-                foundParagraph.classList.add('highlighted-pulse');
-                setTimeout(() => foundParagraph.classList.remove('highlighted-pulse'), 3500);
-              } else {
-                // Fallback la titlul subcapitolului
-                const yOffset = -90;
-                const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                window.scrollTo({ top: y, behavior: 'smooth' });
-                targetEl.classList.add('highlighted-pulse');
-                setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3500);
-              }
-            } else {
-              // Scroll direct la subcapitol
-              const yOffset = -90;
-              const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
-              window.scrollTo({ top: y, behavior: 'smooth' });
-              targetEl.classList.add('highlighted-pulse');
-              setTimeout(() => targetEl.classList.remove('highlighted-pulse'), 3500);
-            }
-
-            // Activare în sidebar
-            const activeLink = document.querySelector(`.subchapter-link[href="#${res.subchapterId}"]`);
-            if (activeLink) {
-              document.querySelectorAll('.subchapter-link').forEach(link => link.classList.remove('active'));
-              activeLink.classList.add('active');
-              
-              const parent = activeLink.closest('.chapter-item');
-              if (parent) {
-                document.querySelectorAll('.chapter-item').forEach(item => item.classList.remove('expanded'));
-                parent.classList.add('expanded');
-              }
+          const paragraphs = document.querySelectorAll('#rulesContainer p');
+          let foundParagraph = null;
+          const cleanSearchText = res.pText.replace(/^[•\s\-\*]+/g, '').trim();
+          
+          for (const p of paragraphs) {
+            if (p.textContent.includes(cleanSearchText)) {
+              foundParagraph = p;
+              break;
             }
           }
-        }, 150); // timp scurt pentru re-randare pagină dacă s-a schimbat categoria
+          
+          if (foundParagraph) {
+            const yOffset = -120;
+            const y = foundParagraph.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+            
+            foundParagraph.classList.add('highlighted-pulse');
+            setTimeout(() => foundParagraph.classList.remove('highlighted-pulse'), 3500);
+          }
+        }, 150);
       });
 
       searchResults.appendChild(div);

@@ -164,7 +164,7 @@ async function checkAuthAndInit() {
       if (editorTabBtn) editorTabBtn.style.display = 'inline-block';
       // Încărcare date regulamente pentru editor
       await fetchRulesData();
-      populateChapters();
+      loadCategoryContent();
     }
 
     // Afișare tab Manager dacă este manager staff (manager sau admin)
@@ -173,6 +173,9 @@ async function checkAuthAndInit() {
       managerTab.style.display = 'inline-block';
       loadPendingUsers();
       loadActiveStaff();
+      
+      const rulesManagerControls = document.getElementById('rulesManagerControls');
+      if (rulesManagerControls) rulesManagerControls.style.display = 'flex';
     }
 
   } catch (error) {
@@ -235,17 +238,7 @@ function setupEventListeners() {
 
   // Selector Categorie Editor
   editCategorySelect.addEventListener('change', () => {
-    populateChapters();
-  });
-
-  // Selector Capitol Editor
-  editChapterSelect.addEventListener('change', () => {
-    populateSubchapters();
-  });
-
-  // Selector Subcapitol Editor
-  editSubchapterSelect.addEventListener('change', () => {
-    loadSubchapterContent();
+    loadCategoryContent();
   });
 
   // Live Editor Typing
@@ -257,9 +250,9 @@ function setupEventListeners() {
   // Salvare Regulament
   saveRuleBtn.addEventListener('click', async () => {
     const content = ruleTextEditor.value;
-    const { category, chapterId, subchapterId } = currentSelectedRule;
+    const { category } = currentSelectedRule;
 
-    if (!category || !chapterId || !subchapterId) return;
+    if (!category) return;
 
     try {
       saveRuleBtn.disabled = true;
@@ -270,8 +263,6 @@ function setupEventListeners() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categoryKey: category,
-          chapterId,
-          subchapterId,
           content
         })
       });
@@ -323,73 +314,27 @@ function setupEventListeners() {
 // ==========================================
 // EDITOR MANAGEMENT
 // ==========================================
-function populateChapters() {
+function loadCategoryContent() {
   const categoryKey = editCategorySelect.value;
-  editChapterSelect.innerHTML = '<option value="" disabled selected>-- Alege Capitol --</option>';
-  editSubchapterSelect.innerHTML = '<option value="" disabled selected>-- Alege Subcapitol --</option>';
   
   // Resetează editor
   ruleTextEditor.value = '';
   ruleTextEditor.disabled = true;
-  editorLivePreview.innerHTML = '<span style="color: var(--text-dark);">Alege capitol și subcapitol pentru previzualizare.</span>';
-  editorTitleDisplay.textContent = 'Selectează un subcapitol pentru a edita';
+  editorLivePreview.innerHTML = '<span style="color: var(--text-dark);">Alege o categorie pentru a edita.</span>';
+  editorTitleDisplay.textContent = 'Selectează o categorie pentru a edita';
   saveRuleBtn.disabled = true;
 
   if (!rulesData || !rulesData[categoryKey]) return;
 
-  const chapters = rulesData[categoryKey].chapters;
-  chapters.forEach(ch => {
-    const opt = document.createElement('option');
-    opt.value = ch.id;
-    opt.textContent = ch.title;
-    editChapterSelect.appendChild(opt);
-  });
-}
-
-function populateSubchapters() {
-  const categoryKey = editCategorySelect.value;
-  const chapterId = editChapterSelect.value;
-  editSubchapterSelect.innerHTML = '<option value="" disabled selected>-- Alege Subcapitol --</option>';
-
-  ruleTextEditor.value = '';
-  ruleTextEditor.disabled = true;
-  editorLivePreview.innerHTML = '<span style="color: var(--text-dark);">Alege subcapitol pentru previzualizare.</span>';
-  editorTitleDisplay.textContent = 'Selectează un subcapitol';
+  const category = rulesData[categoryKey];
+  currentSelectedRule = { category: categoryKey };
+  
+  editorTitleDisplay.textContent = category.title;
+  ruleTextEditor.value = category.content || '';
+  ruleTextEditor.disabled = false;
+  
+  updateLivePreview();
   saveRuleBtn.disabled = true;
-
-  if (!rulesData || !rulesData[categoryKey] || !chapterId) return;
-
-  const chapter = rulesData[categoryKey].chapters.find(c => c.id === chapterId);
-  if (!chapter) return;
-
-  chapter.subchapters.forEach(sub => {
-    const opt = document.createElement('option');
-    opt.value = sub.id;
-    opt.textContent = sub.title;
-    editSubchapterSelect.appendChild(opt);
-  });
-}
-
-function loadSubchapterContent() {
-  const categoryKey = editCategorySelect.value;
-  const chapterId = editChapterSelect.value;
-  const subchapterId = editSubchapterSelect.value;
-
-  if (!rulesData || !categoryKey || !chapterId || !subchapterId) return;
-
-  const chapter = rulesData[categoryKey].chapters.find(c => c.id === chapterId);
-  const subchapter = chapter.subchapters.find(s => s.id === subchapterId);
-
-  if (subchapter) {
-    currentSelectedRule = { category: categoryKey, chapterId, subchapterId };
-    
-    editorTitleDisplay.textContent = subchapter.title;
-    ruleTextEditor.value = subchapter.content;
-    ruleTextEditor.disabled = false;
-    
-    updateLivePreview();
-    saveRuleBtn.disabled = true; // activat doar la modificări (input)
-  }
 }
 
 function updateLivePreview() {
@@ -399,14 +344,56 @@ function updateLivePreview() {
     return;
   }
 
-  // Conversie simplă text în paragrafe HTML cu badge-uri
-  const paragraphs = text.split('\n').filter(p => p.trim() !== '');
   editorLivePreview.innerHTML = '';
-  paragraphs.forEach(p => {
-    const pEl = document.createElement('p');
-    pEl.style.marginBottom = '0.75rem';
-    pEl.innerHTML = formatRuleText(p);
-    editorLivePreview.appendChild(pEl);
+  const lines = text.split('\n');
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      const spacer = document.createElement('div');
+      spacer.style.height = '1rem';
+      editorLivePreview.appendChild(spacer);
+      return;
+    }
+
+    if (trimmed.startsWith('### ')) {
+      const h2 = document.createElement('h2');
+      h2.className = 'chapter-title';
+      h2.style.cssText = `
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 1.8rem;
+        color: var(--text-light);
+        margin-top: 2.5rem;
+        margin-bottom: 1.25rem;
+        border-bottom: 2px solid var(--primary);
+        padding-bottom: 0.5rem;
+      `;
+      h2.textContent = trimmed.substring(4);
+      editorLivePreview.appendChild(h2);
+    } else if (trimmed.startsWith('#### ')) {
+      const h3 = document.createElement('h3');
+      h3.className = 'subchapter-title';
+      h3.style.cssText = `
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1.3rem;
+        color: var(--primary);
+        margin-top: 1.75rem;
+        margin-bottom: 0.85rem;
+      `;
+      h3.textContent = trimmed.substring(5);
+      editorLivePreview.appendChild(h3);
+    } else {
+      const pEl = document.createElement('p');
+      pEl.style.cssText = `
+        margin-bottom: 0.85rem;
+        font-size: 1.02rem;
+        line-height: 1.65;
+        color: var(--text-normal);
+      `;
+      pEl.innerHTML = formatRuleText(trimmed);
+      editorLivePreview.appendChild(pEl);
+    }
   });
 }
 
