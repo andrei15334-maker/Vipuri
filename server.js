@@ -164,15 +164,15 @@ app.get('/api/rules', (req, res) => {
   res.json(db.getRules());
 });
 
-// Actualizare subcapitol (doar Admini sau Manageri)
+// Actualizare regulament categorie (doar Admini sau Manageri)
 app.post('/api/rules/update', requireAdmin, (req, res) => {
-  const { categoryKey, chapterId, subchapterId, content } = req.body;
+  const { categoryKey, content } = req.body;
 
-  if (!categoryKey || !chapterId || !subchapterId || content === undefined) {
+  if (!categoryKey || content === undefined) {
     return res.status(400).json({ success: false, message: "Lipsesc parametri obligatorii." });
   }
 
-  const result = db.updateSubchapterContent(categoryKey, chapterId, subchapterId, content, req.session.userId, req.session.userName);
+  const result = db.updateCategoryContent(categoryKey, content, req.session.userId, req.session.userName);
   if (!result.success) {
     return res.status(400).json(result);
   }
