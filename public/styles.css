@@ -730,10 +730,7 @@ header.scrolled {
 }
 
 .subchapter-content p {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1.5rem;
+  display: block;
   padding: 0.35rem 0.6rem;
   margin-bottom: 0.4rem;
   border-radius: 6px;
@@ -1393,6 +1390,12 @@ header.scrolled {
   border-color: rgba(186, 104, 200, 0.25);
 }
 
+.badge-ban-temp {
+  background: rgba(255, 204, 0, 0.08);
+  color: #ffcc00;
+  border-color: rgba(255, 204, 0, 0.25);
+}
+
 .badge-kick {
   background: rgba(230, 126, 34, 0.08);
   color: #e67e22;
@@ -1401,11 +1404,7 @@ header.scrolled {
 
 /* Aliniere la dreapta pe aceeași linie pentru text și badge-uri */
 .subchapter-content p, .editor-preview-box p {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap; /* Permite așezare pe rândul următor pe ecrane foarte mici */
-  gap: 1.5rem;
+  display: block;
   width: 100%;
   border-bottom: 1px dashed rgba(255, 255, 255, 0.03);
   padding-bottom: 0.6rem;
@@ -1418,17 +1417,15 @@ header.scrolled {
 }
 
 .rule-text {
-  flex: 1;
-  min-width: 250px;
   line-height: 1.6;
 }
 
 .rule-badges {
-  display: flex;
+  display: inline-flex;
   gap: 0.5rem;
   align-items: center;
-  flex-shrink: 0;
-  margin-left: auto; /* Împinge badge-urile maxim la dreapta */
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 /* Info action button style */

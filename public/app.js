@@ -272,10 +272,6 @@ function renderRulesText(categoryData) {
         font-size: 1.02rem;
         line-height: 1.65;
         color: var(--text-normal);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1.5rem;
         scroll-margin-top: 120px;
       `;
       pEl.innerHTML = formatRuleText(trimmed);
@@ -378,73 +374,65 @@ function formatRuleText(text) {
   let secondaryBadge = '';
 
   // 1. Extrage Amenzile (Primar)
-  escaped = escaped.replace(/Amenda\s+([0-9.,]+)\$/gi, (match, p1) => {
+  escaped = escaped.replace(/[\s\-–—|+:]*Amenda\s+([0-9.,]+)\$/gi, (match, p1) => {
     primaryBadge = `<span class="badge badge-fine">💵 Amendă: ${p1}$</span>`;
     return '';
   });
 
   // 2. Extrage Check Points (Primar)
-  escaped = escaped.replace(/([0-9.]+)\s+Check\s+Points/gi, (match, p1) => {
+  escaped = escaped.replace(/[\s\-–—|+:]*([0-9.]+)\s+Check\s+Points/gi, (match, p1) => {
     primaryBadge = `<span class="badge badge-cp">📍 ${p1} CP</span>`;
     return '';
   });
 
   // 3. Extrage Sentințele (Închisoare) (Secundar)
-  escaped = escaped.replace(/Sentință\s+([0-9.]+)\s+Luni/gi, (match, p1) => {
+  escaped = escaped.replace(/[\s\-–—|+:]*Sentință\s+([0-9.]+)\s+Luni/gi, (match, p1) => {
     secondaryBadge = `<span class="badge badge-jail">🔒 Închisoare: ${p1} Luni</span>`;
     return '';
   });
 
   // 4. Extrage Avertismentele (Warn) (Secundar)
-  escaped = escaped.replace(/([0-9.]+)\s+Warn/gi, (match, p1) => {
+  escaped = escaped.replace(/[\s\-–—|+:]*([0-9.]+)\s+Warn/gi, (match, p1) => {
     secondaryBadge = `<span class="badge badge-warn">⚠️ ${p1} Warn</span>`;
     return '';
   });
 
-  // 5. Extrage Mute minute (Secundar)
-  escaped = escaped.replace(/([0-9.]+)\s+minute/gi, (match, p1) => {
-    secondaryBadge = `<span class="badge badge-jail">🔇 ${p1} Min Mute</span>`;
+  // 5. Extrage Ban (Secundar)
+  escaped = escaped.replace(/[\s\-–—|+:]*Ban\s+Temporar/gi, () => {
+    secondaryBadge = `<span class="badge badge-ban-temp">🚫 Ban Temporar</span>`;
     return '';
   });
 
-  // 6. Extrage Ban (Secundar)
-  escaped = escaped.replace(/Ban\s+Permanent/gi, () => {
+  escaped = escaped.replace(/[\s\-–—|+:]*Ban\s+Permanent/gi, () => {
     secondaryBadge = `<span class="badge badge-ban">🚫 Ban Permanent</span>`;
     return '';
   });
 
-  // 7. Extrage Kick (Secundar)
-  escaped = escaped.replace(/Kick/gi, () => {
-    secondaryBadge = `<span class="badge badge-kick">👢 Kick</span>`;
-    return '';
-  });
-
-  // Curăță delimitatorii și spațiile suplimentare rămase
-  let cleanText = escaped
-    .replace(/\s*[|:\–\-+]\s*$/g, '')
-    .replace(/^[|:\–\-+]\s*/g, '')
-    .replace(/\s*[|:\–\-+]+\s*[|:\–\-+]*\s*/g, ' ')
+  // Curăță delimitatorii și spațiile suplimentare rămase doar de la început/sfârșit
+  let cleanText = escaped.trim()
+    .replace(/\s*[|:\–\-+]+$/g, '')
+    .replace(/^[|:\–\-+]+\s*/g, '')
     .trim();
 
   cleanText = cleanText.replace(/\s+/g, ' ');
 
-  // Adaugă textul "(În funcție de gravitate)" deasupra avertismentelor (warns)
+  // Adaugă textul "(În funcție de gravitate)" lângă avertismente (warns) în mod inline
   if (secondaryBadge && secondaryBadge.includes('badge-warn')) {
     secondaryBadge = `
-      <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1;">
-        <span style="font-size: 0.62rem; color: var(--text-muted); margin-bottom: 3px; text-align: right; white-space: nowrap; font-weight: 500;">(În funcție de gravitate)</span>
+      <span style="display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;">
+        <span style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500; font-family: inherit;">(În funcție de gravitate)</span>
         ${secondaryBadge}
-      </div>
+      </span>
     `;
   }
 
   if (primaryBadge || secondaryBadge) {
     return `
       <span class="rule-text">${cleanText}</span>
-      <div class="rule-badges">
-        <div class="badge-slot primary-slot">${primaryBadge || ''}</div>
-        <div class="badge-slot secondary-slot">${secondaryBadge || ''}</div>
-      </div>
+      <span class="rule-badges" style="display: inline-flex; gap: 0.5rem; align-items: center; margin-left: 8px; vertical-align: middle; flex-wrap: wrap;">
+        ${primaryBadge || ''}
+        ${secondaryBadge || ''}
+      </span>
     `;
   } else {
     return `<span class="rule-text">${cleanText}</span>`;
